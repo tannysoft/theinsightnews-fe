@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import parse from "html-react-parser";
 import { getPost, getPosts, formatDate } from "@/lib/api";
 import { NewsCard, RowCard } from "@/components/NewsCard";
-import SocialIcons from "@/components/SocialIcons";
+import ShareButtons from "@/components/ShareButtons";
 import ArticleEnhancer from "@/components/ArticleEnhancer";
+
+const SITE_URL = "https://theinsightnews.co";
 
 export const revalidate = 300;
 
@@ -97,11 +99,15 @@ export default async function PostPage({ params }) {
 
             {post.tags?.length > 0 && (
               <div className="mt-10 flex flex-wrap gap-2 border-t border-black/10 pt-8">
-                <span className="mr-2 text-[11px] font-bold uppercase tracking-[0.18em] text-ink-muted">Tags:</span>
+                <span className="mr-2 self-center text-[11px] font-bold uppercase tracking-[0.18em] text-ink-muted">Tags:</span>
                 {post.tags.map((t) => (
-                  <span key={t.id} className="rounded-full border border-black/10 px-3 py-1 text-xs text-ink-soft hover:border-brand hover:text-brand">
+                  <Link
+                    key={t.id}
+                    href={`/tag/${t.slug}`}
+                    className="rounded-full border border-black/10 px-3 py-1 text-xs text-ink-soft transition hover:border-brand hover:bg-brand hover:text-white"
+                  >
                     #{t.name}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}
@@ -128,13 +134,16 @@ export default async function PostPage({ params }) {
             </div>
 
             {/* Share */}
-            <div className="mt-8 flex items-center justify-between rounded-xl bg-ink p-5 text-white">
-              <span className="text-sm font-semibold">แชร์บทความนี้</span>
-              <SocialIcons
-                platforms={["x", "facebook", "line", "telegram"]}
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-ink p-5 text-white">
+              <div>
+                <span className="text-sm font-semibold">แชร์บทความนี้</span>
+                <p className="mt-0.5 text-xs text-white/60">ช่วยกระจายข่าวเชิงลึกให้คนมากขึ้น</p>
+              </div>
+              <ShareButtons
+                url={`${SITE_URL}/post/${post.slug}`}
+                title={post.title}
+                platforms={["x", "facebook", "line", "telegram", "whatsapp"]}
                 variant="solid"
-                size={36}
-                iconSize={15}
               />
             </div>
           </div>

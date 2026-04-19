@@ -59,7 +59,7 @@ export function HeroCard({ post }) {
       </div>
       <div className="absolute inset-x-0 bottom-0 z-10 p-6 md:p-10">
         <Category cats={post.categories} />
-        <h2 className="headline mt-3 max-w-4xl text-white text-3xl md:text-5xl lg:text-6xl line-clamp-2">
+        <h2 className="headline mt-3 max-w-4xl text-white text-2xl md:text-3xl lg:text-[32px] line-clamp-2">
           <Link href={href} className="hover:text-white/90">
             {post.title}
           </Link>

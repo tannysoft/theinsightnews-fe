@@ -81,9 +81,13 @@ export default async function ArchivePage({ kind, term, page, extra }) {
 
   // Category-style hero vs tag-style hero
   const isTag = kind === "tag";
+  // Only the tag INDEX page has an `extra` (tag cloud) that gives natural
+  // breathing room before the footer. Every other variant (all category
+  // pages + paginated tag pages) needs its own bottom padding.
+  const needsBottomSpace = !extra;
 
   return (
-    <div className={isTag ? undefined : "pb-20"}>
+    <div className={needsBottomSpace ? "pb-20" : undefined}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(itemListJsonLd) }}

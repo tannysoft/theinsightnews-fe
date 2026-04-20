@@ -2,28 +2,32 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import parse from "html-react-parser";
-import { getPost, getPosts, formatDate } from "@/lib/api";
+import { getPost, getPosts, formatDate, stripHtml } from "@/lib/api";
 import { NewsCard, RowCard } from "@/components/NewsCard";
 import ShareButtons from "@/components/ShareButtons";
 import ArticleEnhancer from "@/components/ArticleEnhancer";
+import { SITE, absUrl, cleanText } from "@/lib/site";
+import { yoastToMetadata, yoastSchema } from "@/lib/yoast";
 
-const SITE_URL = "https://theinsightnews.co";
+const SITE_URL = SITE.url;
 
 export const revalidate = 300;
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const post = await getPost(slug);
-  if (!post) return { title: "ไม่พบบทความ" };
-  return {
-    title: post.title,
-    description: post.excerpt?.slice(0, 160),
-    openGraph: {
+  if (!post) {
+    return { title: "ไม่พบบทความ", robots: { index: false, follow: false } };
+  }
+  const canonicalPath = `/post/${post.slug}`;
+  return yoastToMetadata(post.yoast, {
+    canonicalPath,
+    fallback: {
       title: post.title,
-      description: post.excerpt?.slice(0, 160),
-      images: post.featuredImage ? [post.featuredImage] : [],
+      description: cleanText(post.excerpt || post.content, 160),
+      image: post.featuredImage,
     },
-  };
+  });
 }
 
 export default async function PostPage({ params }) {
@@ -38,51 +42,144 @@ export default async function PostPage({ params }) {
 
   const trendingRes = await getPosts({ perPage: 5, exclude: post.id });
 
+  const articleUrl = `${SITE_URL}/post/${post.slug}`;
+
+  // Prefer Yoast's schema graph if available, otherwise fall back to our own
+  const yoastGraph = yoastSchema(post.yoast, `/post/${post.slug}`);
+  const articleJsonLd = yoastGraph || {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
+    headline: post.title,
+    description: cleanText(post.excerpt || post.content, 200),
+    image: post.featuredImage ? [post.featuredImage] : [absUrl(SITE.defaultOgImage)],
+    datePublished: post.date,
+    dateModified: post.modified || post.date,
+    author: [
+      {
+        "@type": "Person",
+        name: post.author?.name || SITE.name,
+      },
+    ],
+    publisher: {
+      "@type": SITE.organizationType,
+      name: SITE.name,
+      logo: {
+        "@type": "ImageObject",
+        url: absUrl(SITE.logo),
+      },
+    },
+    articleSection: post.categories?.[0]?.name,
+    keywords: post.tags?.map((t) => t.name).join(", "),
+    inLanguage: "th-TH",
+    wordCount: stripHtml(post.content).split(/\s+/).filter(Boolean).length,
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      ...(post.categories?.[0]
+        ? [
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: post.categories[0].name,
+              item: `${SITE_URL}/category/${post.categories[0].slug}`,
+            },
+          ]
+        : []),
+      {
+        "@type": "ListItem",
+        position: post.categories?.[0] ? 3 : 2,
+        name: post.title,
+        item: articleUrl,
+      },
+    ],
+  };
+
   return (
     <article>
-      {/* Hero */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      {/* Hero — image-forward */}
       <header className="relative overflow-hidden bg-ink text-white">
-        {post.featuredImage && (
-          <Image
-            src={post.featuredImage}
-            alt={post.featuredAlt || post.title}
-            fill
-            sizes="100vw"
-            priority
-            className="absolute inset-0 object-cover opacity-30"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/80 to-ink/30" />
-        <div className="container-news relative py-20 md:py-28">
-          <div className="max-w-4xl">
-            {post.categories?.[0] && (
-              <Link href={`/category/${post.categories[0].slug}`} className="inline-flex items-center gap-2 rounded-sm bg-brand px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white">
-                {post.categories[0].name}
-              </Link>
-            )}
-            <h1 className="headline mt-5 text-4xl leading-[1.55] text-white md:text-6xl md:leading-[1.35]">
-              {post.title}
-            </h1>
-            {post.excerpt && (
-              <p className="mt-5 max-w-3xl text-lg text-white/80">{post.excerpt}</p>
-            )}
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+        {/* Image area */}
+        <div className="relative h-[60vh] min-h-[420px] w-full md:h-[70vh] md:min-h-[560px]">
+          {post.featuredImage && (
+            <Image
+              src={post.featuredImage}
+              alt={post.featuredAlt || post.title}
+              fill
+              sizes="100vw"
+              priority
+              className="absolute inset-0 object-cover"
+            />
+          )}
+          {/* Subtle gradient — image stays vivid; darken only enough for title contrast */}
+          <div className="absolute inset-x-0 top-0 h-[25%] bg-gradient-to-b from-black/40 via-black/10 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-black via-black/70 to-transparent" />
+
+          {/* Floating category badge — aligned with container-news edges */}
+          {post.categories?.[0] && (
+            <div className="pointer-events-none absolute inset-x-0 top-0">
+              <div className="container-news pt-6 md:pt-8">
+                <Link
+                  href={`/category/${post.categories[0].slug}`}
+                  className="pointer-events-auto inline-flex items-center gap-2 rounded-sm bg-brand px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white shadow-lg"
+                >
+                  {post.categories[0].name}
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Overlay content anchored to the image bottom */}
+          <div className="absolute inset-x-0 bottom-0">
+            <div className="container-news pb-8 md:pb-6">
+              <div className="max-w-6xl">
+                <h1 className="headline text-3xl leading-[1.55] text-white md:text-5xl md:leading-[1.35] lg:text-6xl lg:leading-[1.35]">
+                  {post.title}
+                </h1>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sub-header strip with meta — compact, keeps image prominent above */}
+        <div className="border-b border-white/10 bg-ink">
+          <div className="container-news py-5">
+            <div className="flex max-w-4xl flex-wrap items-center gap-4">
               <div className="flex items-center gap-3">
                 {post.author.avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={post.author.avatar} alt={post.author.name} className="h-11 w-11 rounded-full border-2 border-white/20 object-cover" />
+                  <img src={post.author.avatar} alt={post.author.name} className="h-10 w-10 rounded-full border-2 border-white/20 object-cover" />
                 ) : (
-                  <div className="grid h-11 w-11 place-items-center rounded-full bg-brand font-bold">{post.author.name?.[0]}</div>
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-brand font-bold">
+                    {post.author.name?.[0]}
+                  </div>
                 )}
                 <div>
                   <div className="text-sm font-semibold">{post.author.name}</div>
                   <div className="text-xs text-white/60">กองบรรณาธิการ</div>
                 </div>
               </div>
-              <span className="h-6 w-px bg-white/20" />
+              <span className="h-6 w-px bg-white/15" />
               <time className="text-sm text-white/70">{formatDate(post.date)}</time>
-              <span className="h-6 w-px bg-white/20" />
+              <span className="h-6 w-px bg-white/15" />
               <span className="text-sm text-white/70">{post.reading} min read</span>
+              {post.excerpt && (
+                <p className="ml-auto hidden max-w-md text-sm text-white/60 line-clamp-2 lg:block">
+                  {post.excerpt}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -99,7 +196,9 @@ export default async function PostPage({ params }) {
 
             {post.tags?.length > 0 && (
               <div className="mt-10 flex flex-wrap gap-2 border-t border-black/10 pt-8">
-                <span className="mr-2 self-center text-[11px] font-bold uppercase tracking-[0.18em] text-ink-muted">Tags:</span>
+                <span className="mr-2 self-center text-[11px] font-bold uppercase tracking-[0.18em] text-ink-muted">
+                  Tags:
+                </span>
                 {post.tags.map((t) => (
                   <Link
                     key={t.id}
@@ -149,7 +248,7 @@ export default async function PostPage({ params }) {
           </div>
 
           {/* Sidebar */}
-          <aside className="space-y-8 lg:sticky lg:top-[180px] lg:self-start">
+          <aside className="space-y-8 lg:sticky lg:top-[100px] lg:self-start">
             <div>
               <h3 className="section-title mb-5">Related</h3>
               <div className="divide-y divide-black/5">

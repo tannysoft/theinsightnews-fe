@@ -13,7 +13,7 @@ export default async function SectionPage({ section }) {
   const bottom = rest.slice(10, 16);
 
   return (
-    <div>
+    <div className="pb-20">
       {/* Section Hero banner */}
       <section className="border-b border-black/5 bg-gradient-to-br from-paper-warm via-white to-paper">
         <div className="container-news py-12">

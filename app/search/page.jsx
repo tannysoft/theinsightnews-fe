@@ -6,7 +6,11 @@ export const revalidate = 60;
 
 export async function generateMetadata({ searchParams }) {
   const sp = await searchParams;
-  return { title: sp?.q ? `ค้นหา: ${sp.q}` : "ค้นหา" };
+  return {
+    title: sp?.q ? `ค้นหา: ${sp.q}` : "ค้นหา",
+    description: "ค้นหาข่าวเชิงลึก บทวิเคราะห์ และรายงานพิเศษจาก The Insight News",
+    robots: { index: false, follow: true },
+  };
 }
 
 export default async function SearchPage({ searchParams }) {

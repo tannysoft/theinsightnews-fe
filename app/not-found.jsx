@@ -1,5 +1,11 @@
 import Link from "next/link";
 
+export const metadata = {
+  title: "ไม่พบหน้าที่คุณค้นหา",
+  description: "หน้าที่คุณกำลังมองหาอาจถูกย้าย ลบ หรือยังไม่ได้เผยแพร่",
+  robots: { index: false, follow: false },
+};
+
 export default function NotFound() {
   return (
     <div className="container-news py-24 text-center">

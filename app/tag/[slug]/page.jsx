@@ -3,17 +3,28 @@ import { notFound } from "next/navigation";
 import { getTagBySlug, getPopularTags, getPosts, decodeHtml } from "@/lib/api";
 import { NewsCard, HeroCard, RowCard } from "@/components/NewsCard";
 import SectionHeader from "@/components/SectionHeader";
+import { SITE, absUrl } from "@/lib/site";
+import { yoastToMetadata } from "@/lib/yoast";
 
 export const revalidate = 300;
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params, searchParams }) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const page = Math.max(1, parseInt(sp?.page || "1", 10));
   const tag = await getTagBySlug(slug);
-  if (!tag) return { title: "Tag" };
-  return {
-    title: `#${decodeHtml(tag.name)}`,
-    description: decodeHtml(tag.description || `บทความที่แท็กด้วย ${tag.name}`),
-  };
+  if (!tag) return { title: "Tag", robots: { index: false, follow: false } };
+  const name = decodeHtml(tag.name);
+  const canonicalPath = `/tag/${slug}${page > 1 ? `?page=${page}` : ""}`;
+  const meta = yoastToMetadata(tag.yoast_head_json, {
+    canonicalPath,
+    fallback: {
+      title: `#${name}`,
+      description: decodeHtml(tag.description || `บทความที่แท็กด้วย ${name} จาก ${SITE.name}`),
+    },
+  });
+  if (page > 1) meta.title = `#${name} — หน้า ${page}`;
+  return meta;
 }
 
 export default async function TagPage({ params, searchParams }) {
@@ -39,8 +50,45 @@ export default async function TagPage({ params, searchParams }) {
   const top = rest.slice(0, 4);
   const grid = rest.slice(4);
 
+  const tagUrl = absUrl(`/tag/${slug}`);
+  const tagName = decodeHtml(tag.name);
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `#${tagName}`,
+    url: page > 1 ? `${tagUrl}?page=${page}` : tagUrl,
+    numberOfItems: posts.length,
+    itemListElement: posts.map((p, i) => ({
+      "@type": "ListItem",
+      position: (page - 1) * 12 + i + 1,
+      url: absUrl(`/post/${p.slug}`),
+      name: p.title,
+    })),
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
+      { "@type": "ListItem", position: 2, name: `#${tagName}`, item: tagUrl },
+    ],
+  };
+  const prevUrl =
+    page > 1 ? (page === 2 ? tagUrl : `${tagUrl}?page=${page - 1}`) : null;
+  const nextUrl = page < totalPages ? `${tagUrl}?page=${page + 1}` : null;
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      {prevUrl && <link rel="prev" href={prevUrl} />}
+      {nextUrl && <link rel="next" href={nextUrl} />}
       {/* Hero / header */}
       <section className="relative overflow-hidden border-b border-black/5 bg-ink text-white">
         <div

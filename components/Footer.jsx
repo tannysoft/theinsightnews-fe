@@ -18,7 +18,7 @@ const COLS = [
       { label: "About Us", href: "/about" },
       { label: "Editorial Standards", href: "/about#standards" },
       { label: "Contact Us", href: "/about#contact" },
-      { label: "Careers", href: "/about#careers" },
+      { label: "Privacy Policy", href: "/privacy" },
     ],
   },
   {

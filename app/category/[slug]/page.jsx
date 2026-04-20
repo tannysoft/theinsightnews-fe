@@ -3,14 +3,28 @@ import { notFound } from "next/navigation";
 import { getCategoryBySlug, getPosts, decodeHtml } from "@/lib/api";
 import { NewsCard, HeroCard, RowCard } from "@/components/NewsCard";
 import SectionHeader from "@/components/SectionHeader";
+import { SITE, absUrl } from "@/lib/site";
+import { yoastToMetadata } from "@/lib/yoast";
 
 export const revalidate = 300;
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params, searchParams }) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const page = Math.max(1, parseInt(sp?.page || "1", 10));
   const cat = await getCategoryBySlug(slug);
-  if (!cat) return { title: "หมวดหมู่" };
-  return { title: decodeHtml(cat.name), description: decodeHtml(cat.description || "") };
+  if (!cat) return { title: "หมวดหมู่", robots: { index: false, follow: false } };
+  const name = decodeHtml(cat.name);
+  const canonicalPath = `/category/${slug}${page > 1 ? `?page=${page}` : ""}`;
+  const meta = yoastToMetadata(cat.yoast_head_json, {
+    canonicalPath,
+    fallback: {
+      title: name,
+      description: decodeHtml(cat.description || `รวมบทความในหมวด ${name} จาก ${SITE.name}`),
+    },
+  });
+  if (page > 1) meta.title = `${name} — หน้า ${page}`;
+  return meta;
 }
 
 export default async function CategoryPage({ params, searchParams }) {
@@ -29,8 +43,45 @@ export default async function CategoryPage({ params, searchParams }) {
   const top = rest.slice(0, 4);
   const grid = rest.slice(4);
 
+  const catUrl = absUrl(`/category/${slug}`);
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: decodeHtml(cat.name),
+    url: page > 1 ? `${catUrl}?page=${page}` : catUrl,
+    numberOfItems: posts.length,
+    itemListElement: posts.map((p, i) => ({
+      "@type": "ListItem",
+      position: (page - 1) * 12 + i + 1,
+      url: absUrl(`/post/${p.slug}`),
+      name: p.title,
+    })),
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
+      { "@type": "ListItem", position: 2, name: decodeHtml(cat.name), item: catUrl },
+    ],
+  };
+
+  const prevUrl =
+    page > 1 ? (page === 2 ? catUrl : `${catUrl}?page=${page - 1}`) : null;
+  const nextUrl = page < totalPages ? `${catUrl}?page=${page + 1}` : null;
+
   return (
-    <div>
+    <div className="pb-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      {prevUrl && <link rel="prev" href={prevUrl} />}
+      {nextUrl && <link rel="next" href={nextUrl} />}
       <section className="border-b border-black/5 bg-paper-warm">
         <div className="container-news py-12">
           <Link href="/" className="text-[12px] font-semibold uppercase tracking-wider text-ink-muted hover:text-brand">← Home</Link>

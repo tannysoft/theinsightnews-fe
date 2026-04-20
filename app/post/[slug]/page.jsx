@@ -124,8 +124,8 @@ export default async function PostPage({ params }) {
             />
           )}
           {/* Subtle gradient — image stays vivid; darken only enough for title contrast */}
-          <div className="absolute inset-x-0 top-0 h-[25%] bg-gradient-to-b from-black/40 via-black/10 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-black via-black/70 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-[20%] bg-gradient-to-b from-black/25 via-black/5 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-[50%] bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
 
           {/* Floating category badge — aligned with container-news edges */}
           {post.categories?.[0] && (

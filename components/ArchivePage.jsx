@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getPosts, decodeHtml } from "@/lib/api";
 import { NewsCard, HeroCard, RowCard } from "@/components/NewsCard";
 import SectionHeader from "@/components/SectionHeader";
-import { SITE, absUrl } from "@/lib/site";
+import { SITE, absUrl, safeJsonLd } from "@/lib/site";
 
 /**
  * Shared archive body used by:
@@ -19,17 +19,28 @@ import { SITE, absUrl } from "@/lib/site";
  *   extra: optional node rendered after the grid (eg. tag cloud on tag page)
  */
 export default async function ArchivePage({ kind, term, page, extra }) {
-  const perPage = page === 1 ? 14 : 12;
-  const offset = page === 1 ? undefined : 2;
-
+  // Page 1 shows 14 posts (hero + top 4 + grid 9).
+  // Page 2+ shows 12 posts each, with an absolute offset that skips the
+  // 14 already shown on page 1 plus the posts already shown on earlier
+  // paginated pages. WP REST's `offset` param overrides pagination, so
+  // we calculate the offset ourselves and don't send `page`.
+  const isFirst = page === 1;
+  const perPage = isFirst ? 14 : 12;
   const queryKey = kind === "tag" ? "tags" : "categories";
-  const { posts, totalPages } = await getPosts({
-    [queryKey]: term.id,
-    perPage,
-    page,
-    offset,
-  });
+
+  const fetchArgs = { [queryKey]: term.id, perPage };
+  if (isFirst) {
+    fetchArgs.page = 1;
+  } else {
+    fetchArgs.offset = 14 + (page - 2) * 12;
+  }
+
+  const { posts, total } = await getPosts(fetchArgs);
   if (posts.length === 0 && page > 1) notFound();
+
+  // Correct total pages: 14 on page 1, 12 thereafter
+  const totalPages =
+    total <= 14 ? 1 : 1 + Math.ceil((total - 14) / 12);
 
   const [hero, ...rest] = posts;
   const top = rest.slice(0, 4);
@@ -75,11 +86,11 @@ export default async function ArchivePage({ kind, term, page, extra }) {
     <div className={isTag ? undefined : "pb-20"}>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(itemListJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
       {prevAbs && <link rel="prev" href={prevAbs} />}
       {nextAbs && <link rel="next" href={nextAbs} />}

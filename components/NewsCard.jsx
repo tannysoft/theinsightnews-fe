@@ -50,7 +50,7 @@ export function HeroCard({ post }) {
             priority
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+        <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
       </Link>
       <div className="pointer-events-none absolute left-0 top-0 m-6 flex items-center gap-2">
         <span className="rounded-sm bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">

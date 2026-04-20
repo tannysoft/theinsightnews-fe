@@ -3,7 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BreakingTicker from "@/components/BreakingTicker";
 import CookieNotice from "@/components/CookieNotice";
-import { SITE, absUrl } from "@/lib/site";
+import { SITE, absUrl, safeJsonLd } from "@/lib/site";
 
 export const metadata = {
   metadataBase: new URL(SITE.url),
@@ -119,11 +119,11 @@ export default function RootLayout({ children }) {
         <link rel="stylesheet" href="https://use.typekit.net/bqa0hwf.css" />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(ORG_JSONLD) }}
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSONLD) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(WEBSITE_JSONLD) }}
         />
       </head>
       <body className="min-h-screen flex flex-col">

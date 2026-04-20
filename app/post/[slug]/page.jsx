@@ -6,7 +6,7 @@ import { getPost, getPosts, formatDate, stripHtml } from "@/lib/api";
 import { NewsCard, RowCard } from "@/components/NewsCard";
 import ShareButtons from "@/components/ShareButtons";
 import ArticleEnhancer from "@/components/ArticleEnhancer";
-import { SITE, absUrl, cleanText } from "@/lib/site";
+import { SITE, absUrl, cleanText, safeJsonLd } from "@/lib/site";
 import { yoastToMetadata, yoastSchema } from "@/lib/yoast";
 
 const SITE_URL = SITE.url;
@@ -103,16 +103,16 @@ export default async function PostPage({ params }) {
     <article>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(articleJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
       {/* Hero — image-forward */}
       <header className="relative overflow-hidden bg-ink text-white">
         {/* Image area */}
-        <div className="relative h-[60vh] min-h-[420px] w-full md:h-[70vh] md:min-h-[560px]">
+        <div className="relative h-[calc(68vh-20px)] min-h-[460px] w-full md:h-[calc(80vh-20px)] md:min-h-[620px]">
           {post.featuredImage && (
             <Image
               src={post.featuredImage}
@@ -123,9 +123,8 @@ export default async function PostPage({ params }) {
               className="absolute inset-0 object-cover"
             />
           )}
-          {/* Subtle gradient — image stays vivid; darken only enough for title contrast */}
-          <div className="absolute inset-x-0 top-0 h-[20%] bg-gradient-to-b from-black/25 via-black/5 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-[50%] bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
+          {/* Bottom-only gradient — thin veil for title contrast */}
+          <div className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
 
           {/* Floating category badge — aligned with container-news edges */}
           {post.categories?.[0] && (
@@ -141,45 +140,48 @@ export default async function PostPage({ params }) {
             </div>
           )}
 
-          {/* Overlay content anchored to the image bottom */}
+          {/* Overlay content anchored to the image bottom — title + meta inline */}
           <div className="absolute inset-x-0 bottom-0">
-            <div className="container-news pb-8 md:pb-6">
+            <div className="container-news pb-6 md:pb-8">
               <div className="max-w-6xl">
                 <h1 className="headline text-3xl leading-[1.55] text-white md:text-5xl md:leading-[1.35] lg:text-6xl lg:leading-[1.35]">
                   {post.title}
                 </h1>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Sub-header strip with meta — compact, keeps image prominent above */}
-        <div className="border-b border-white/10 bg-ink">
-          <div className="container-news py-5">
-            <div className="flex max-w-4xl flex-wrap items-center gap-4">
-              <div className="flex items-center gap-3">
-                {post.author.avatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={post.author.avatar} alt={post.author.name} className="h-10 w-10 rounded-full border-2 border-white/20 object-cover" />
-                ) : (
-                  <div className="grid h-10 w-10 place-items-center rounded-full bg-brand font-bold">
-                    {post.author.name?.[0]}
+            {/* Meta strip inside hero, translucent */}
+            <div className="border-t border-white/10 bg-black/30 backdrop-blur-sm">
+              <div className="container-news py-4">
+                <div className="flex max-w-4xl flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    {post.author.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={post.author.avatar}
+                        alt={post.author.name}
+                        className="h-9 w-9 rounded-full border-2 border-white/25 object-cover"
+                      />
+                    ) : (
+                      <div className="grid h-9 w-9 place-items-center rounded-full bg-brand text-sm font-bold text-white">
+                        {post.author.name?.[0]}
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-sm font-semibold text-white">{post.author.name}</div>
+                      <div className="text-[11px] text-white/70">กองบรรณาธิการ</div>
+                    </div>
                   </div>
-                )}
-                <div>
-                  <div className="text-sm font-semibold">{post.author.name}</div>
-                  <div className="text-xs text-white/60">กองบรรณาธิการ</div>
+                  <span className="h-6 w-px bg-white/20" />
+                  <time className="text-xs text-white/80 md:text-sm">{formatDate(post.date)}</time>
+                  <span className="h-6 w-px bg-white/20" />
+                  <span className="text-xs text-white/80 md:text-sm">{post.reading} min read</span>
+                  {post.excerpt && (
+                    <p className="ml-auto hidden max-w-md text-sm text-white/75 line-clamp-2 lg:block">
+                      {post.excerpt}
+                    </p>
+                  )}
                 </div>
               </div>
-              <span className="h-6 w-px bg-white/15" />
-              <time className="text-sm text-white/70">{formatDate(post.date)}</time>
-              <span className="h-6 w-px bg-white/15" />
-              <span className="text-sm text-white/70">{post.reading} min read</span>
-              {post.excerpt && (
-                <p className="ml-auto hidden max-w-md text-sm text-white/60 line-clamp-2 lg:block">
-                  {post.excerpt}
-                </p>
-              )}
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPosts, SECTION_MAP, formatDate } from "@/lib/api";
+import { getPosts, SECTION_MAP, formatDate, getPopularTags, decodeHtml } from "@/lib/api";
 import { NewsCard, RowCard, MagCard } from "@/components/NewsCard";
 import HeroSlider from "@/components/HeroSlider";
 import SectionHeader from "@/components/SectionHeader";
@@ -7,12 +7,13 @@ import SectionHeader from "@/components/SectionHeader";
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [latestRes, analysisRes, reportsRes, opinionRes, trendingRes] = await Promise.all([
+  const [latestRes, analysisRes, reportsRes, opinionRes, trendingRes, popularTags] = await Promise.all([
     getPosts({ perPage: 22 }),
     getPosts({ perPage: 5, categories: SECTION_MAP["insight-analysis"].categoryIds.join(",") }),
     getPosts({ perPage: 3, categories: SECTION_MAP["special-reports"].categoryIds.join(",") }),
     getPosts({ perPage: 4, categories: SECTION_MAP.opinion.categoryIds.join(",") }),
     getPosts({ perPage: 5 }),
+    getPopularTags({ perPage: 30 }),
   ]);
 
   const sliderPosts = latestRes.posts.slice(0, 5);
@@ -23,6 +24,7 @@ export default async function HomePage() {
 
   return (
     <div>
+      <h1 className="sr-only">The Insight News — ศูนย์รวมข่าวสารเชิงลึก วิเคราะห์เจาะประเด็น ที่ยึดมั่นในความจริง</h1>
       {/* HERO SLIDER */}
       <section className="container-news pt-6">
         <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
@@ -184,6 +186,18 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Tag Cloud */}
+      {popularTags.length > 0 && (
+        <section className="container-news mt-16">
+          <SectionHeader
+            eyebrow="# Tag Cloud"
+            title="สำรวจตามแท็ก"
+            description="หัวข้อที่คนอ่านมากที่สุดในช่วงนี้"
+          />
+          <TagCloud tags={popularTags.slice(0, 24)} />
+        </section>
+      )}
+
       {/* Values strip */}
       <section className="mt-16 border-y border-black/5 bg-paper-warm py-12">
         <div className="container-news">
@@ -241,6 +255,67 @@ function DarkFeature({ post }) {
         </p>
       </div>
     </article>
+  );
+}
+
+/**
+ * Tag cloud with weight-based sizing:
+ * tags with more posts render larger & warmer; least-used ones stay small.
+ */
+function TagCloud({ tags }) {
+  if (!tags?.length) return null;
+  const counts = tags.map((t) => t.count || 0);
+  const min = Math.min(...counts);
+  const max = Math.max(...counts);
+  const span = Math.max(1, max - min);
+
+  const tierFor = (c) => {
+    const ratio = (c - min) / span; // 0..1
+    if (ratio >= 0.8) return 4;
+    if (ratio >= 0.55) return 3;
+    if (ratio >= 0.3) return 2;
+    if (ratio >= 0.1) return 1;
+    return 0;
+  };
+
+  const CLASSES = [
+    "text-sm py-1.5 px-3.5 text-ink-muted",
+    "text-[15px] py-1.5 px-4 text-ink-soft",
+    "text-base py-2 px-4 text-ink font-medium",
+    "text-lg py-2 px-5 text-ink font-semibold",
+    "text-xl py-2.5 px-5 text-brand font-bold",
+  ];
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-black/5 bg-paper-warm p-6 md:p-10">
+      <div
+        className="pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full bg-brand/5 blur-3xl"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-brand/5 blur-3xl"
+        aria-hidden
+      />
+      <div className="relative flex flex-wrap items-center gap-2.5 md:gap-3">
+        {tags.map((t) => {
+          const tier = tierFor(t.count || 0);
+          return (
+            <Link
+              key={t.id}
+              href={`/tag/${t.slug}`}
+              title={`${t.count || 0} บทความ`}
+              className={`group inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white transition hover:-translate-y-0.5 hover:border-transparent hover:bg-brand hover:text-white hover:shadow-md ${CLASSES[tier]}`}
+            >
+              <span className="text-brand/50 group-hover:text-white/80">#</span>
+              <span>{decodeHtml(t.name)}</span>
+              <span className="ml-1 text-[10px] font-semibold tabular-nums opacity-50 group-hover:opacity-80">
+                {t.count}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

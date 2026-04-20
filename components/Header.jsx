@@ -20,7 +20,16 @@ export default function Header() {
   const [now, setNow] = useState("");
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
+    // Hysteresis to avoid flicker right at the threshold:
+    //   collapse after passing 140px, only re-expand when we're back near the top.
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled((prev) => {
+        if (!prev && y > 140) return true;
+        if (prev && y < 40) return false;
+        return prev;
+      });
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -40,8 +49,12 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-      {/* meta row */}
-      <div className="hidden border-b border-black/5 bg-ink text-white md:block">
+      {/* meta row — collapses away when scrolled */}
+      <div
+        className={`hidden overflow-hidden bg-ink text-white transition-[max-height,opacity] duration-300 md:block ${
+          scrolled ? "max-h-0 border-b-0 opacity-0" : "max-h-[36px] border-b border-black/5 opacity-100"
+        }`}
+      >
         <div className="container-news flex h-9 items-center justify-between text-[12px]">
           <div className="flex items-center gap-4">
             <span className="tabular-nums opacity-80">{now}</span>
@@ -57,7 +70,11 @@ export default function Header() {
       </div>
 
       {/* masthead */}
-      <div className="container-news flex items-center justify-between gap-4 py-3 md:py-4">
+      <div
+        className={`container-news flex items-center justify-between gap-4 transition-[padding] duration-200 ${
+          scrolled ? "py-2" : "py-3 md:py-4"
+        }`}
+      >
         <button
           aria-label="Open menu"
           className="grid h-10 w-10 place-items-center rounded-md border border-black/10 md:hidden"
@@ -66,22 +83,54 @@ export default function Header() {
           <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
         </button>
 
-        <Logo priority height={scrolled ? 40 : 56} className="transition-all" />
+        <div className="flex h-12 items-center md:h-14">
+          <Logo priority height={scrolled ? 36 : 56} className="transition-all duration-200" />
+        </div>
+
+        {/* Inline nav — appears only when scrolled */}
+        {scrolled && (
+          <ul className="hidden items-center lg:flex">
+            {NAV.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={`relative inline-flex h-10 items-center px-3 text-[12px] font-semibold uppercase tracking-[0.1em] transition hover:text-brand ${
+                    item.highlight ? "text-brand" : "text-ink"
+                  }`}
+                >
+                  {item.label}
+                  {item.highlight && (
+                    <span className="ml-2 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand" />
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className="hidden items-center gap-3 md:flex">
           <form action="/search" className="relative">
             <input
               name="q"
               placeholder="ค้นหาข่าว บทวิเคราะห์..."
-              className="h-10 w-64 rounded-full border border-black/10 bg-paper-warm pl-4 pr-10 text-sm outline-none transition focus:w-80 focus:border-brand focus:bg-white"
+              className={`rounded-full border border-black/10 bg-paper-warm pl-4 pr-10 text-sm outline-none transition-all duration-200 focus:border-brand focus:bg-white ${
+                scrolled ? "h-9 w-44 focus:w-56" : "h-10 w-64 focus:w-80"
+              }`}
             />
-            <button className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-brand text-white" aria-label="Search">
+            <button
+              className={`absolute right-1 top-1 grid place-items-center rounded-full bg-brand text-white transition-all duration-200 ${
+                scrolled ? "h-7 w-7" : "h-8 w-8"
+              }`}
+              aria-label="Search"
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m21 21-4.3-4.3M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             </button>
           </form>
           <Link
             href="/membership"
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-600"
+            className={`inline-flex items-center gap-2 rounded-full bg-brand text-sm font-semibold text-white transition-all duration-200 hover:bg-brand-600 ${
+              scrolled ? "h-9 px-4 text-xs" : "h-10 px-5"
+            }`}
           >
             <span>Support Us</span>
             <span>→</span>
@@ -89,8 +138,12 @@ export default function Header() {
         </div>
       </div>
 
-      {/* primary nav */}
-      <nav className="hidden border-t border-black/5 md:block">
+      {/* primary nav — hidden when scrolled (nav moves up into masthead) */}
+      <nav
+        className={`hidden overflow-hidden transition-[max-height,opacity] duration-300 md:block ${
+          scrolled ? "max-h-0 border-t-0 opacity-0" : "max-h-[48px] border-t border-black/5 opacity-100"
+        }`}
+      >
         <div className="container-news flex items-center justify-between">
           <ul className="-ml-4 flex items-center">
             {NAV.map((item) => (

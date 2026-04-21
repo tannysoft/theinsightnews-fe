@@ -20,7 +20,7 @@ export default async function BreakingTicker() {
             {items.map((p, i) => (
               <a
                 key={`${p.id}-${i}`}
-                href={`/post/${p.slug}`}
+                href={`/${p.slug}`}
                 className="flex items-center gap-3 hover:text-brand"
               >
                 <span className="inline-block h-1 w-1 rounded-full bg-brand" />

@@ -50,7 +50,7 @@ export default async function sitemap() {
   }));
 
   const postEntries = posts.map((p) => ({
-    url: `${SITE.url}/post/${p.slug}`,
+    url: `${SITE.url}/${p.slug}`,
     lastModified: new Date(p.modified || p.date),
     changeFrequency: "weekly",
     priority: 0.8,

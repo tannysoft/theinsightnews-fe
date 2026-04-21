@@ -26,7 +26,7 @@ export default function About() {
         <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: "radial-gradient(circle at 20% 20%, white 2px, transparent 2px)", backgroundSize: "32px 32px" }} />
         <div className="container-news relative py-24">
           <span className="eyebrow text-brand-400">● About Us</span>
-          <h1 className="headline mt-4 max-w-4xl text-5xl text-white md:text-7xl">
+          <h1 className="headline mt-4 max-w-4xl text-5xl text-white md:text-7xl md:leading-[1.15]">
             สร้างมาตรฐานใหม่<br />ของการนำเสนอข่าว
           </h1>
           <p className="mt-6 max-w-2xl text-lg text-white/75">

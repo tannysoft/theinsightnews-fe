@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Permanent redirects for legacy URLs that people/search engines might
+  // still hit. Posts used to live at /post/<slug>; they're now at /<slug>.
+  async redirects() {
+    return [
+      {
+        source: "/post/:slug",
+        destination: "/:slug",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

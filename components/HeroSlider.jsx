@@ -85,7 +85,7 @@ export default function HeroSlider({ posts = [] }) {
               </div>
               <h2 className="headline mt-3 max-w-3xl text-xl leading-[1.6] text-white line-clamp-2 md:text-3xl md:leading-[1.5] lg:text-[36px] lg:leading-[1.4]">
                 <Link
-                  href={`/post/${post.slug}`}
+                  href={`/${post.slug}`}
                   className="after:absolute after:inset-0 after:content-[''] hover:text-white/95"
                 >
                   {post.title}

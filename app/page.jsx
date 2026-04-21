@@ -128,7 +128,7 @@ export default async function HomePage() {
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div className="min-w-0">
-                      <Link href={`/post/${p.slug}`}>
+                      <Link href={`/${p.slug}`}>
                         <h4 className="headline text-sm transition hover:text-brand line-clamp-3">{p.title}</h4>
                       </Link>
                       <p className="mt-1.5 text-[11px] text-ink-muted">{formatDate(p.date, { short: true })}</p>
@@ -233,7 +233,7 @@ export default async function HomePage() {
 function DarkFeature({ post }) {
   return (
     <article className="group">
-      <Link href={`/post/${post.slug}`} className="relative block aspect-[16/9] overflow-hidden rounded-xl bg-white/5">
+      <Link href={`/${post.slug}`} className="relative block aspect-[16/9] overflow-hidden rounded-xl bg-white/5">
         {post.featuredImage && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={post.featuredImage} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
@@ -242,7 +242,7 @@ function DarkFeature({ post }) {
       </Link>
       <div className="mt-4">
         <span className="eyebrow text-brand-400">{post.categories?.[0]?.name || "Analysis"}</span>
-        <Link href={`/post/${post.slug}`}>
+        <Link href={`/${post.slug}`}>
           <h3 className="headline mt-2 text-2xl text-white transition hover:text-brand-400 md:text-3xl line-clamp-3">
             {post.title}
           </h3>
@@ -322,7 +322,7 @@ function TagCloud({ tags }) {
 function DarkRow({ post }) {
   return (
     <article className="group grid grid-cols-[140px,1fr] gap-4">
-      <Link href={`/post/${post.slug}`} className="relative aspect-[10/9] overflow-hidden rounded-md bg-white/5">
+      <Link href={`/${post.slug}`} className="relative aspect-[10/9] overflow-hidden rounded-md bg-white/5">
         {post.featuredImage && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={post.featuredImage} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.06]" />
@@ -330,7 +330,7 @@ function DarkRow({ post }) {
       </Link>
       <div>
         <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-brand-400">{post.categories?.[0]?.name || "Insight"}</span>
-        <Link href={`/post/${post.slug}`}>
+        <Link href={`/${post.slug}`}>
           <h4 className="headline mt-1 text-base text-white transition hover:text-brand-400 line-clamp-3">{post.title}</h4>
         </Link>
         <p className="mt-2 text-[11px] text-white/60">{formatDate(post.date, { short: true })} · {post.reading} min</p>

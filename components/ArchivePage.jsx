@@ -63,7 +63,7 @@ export default async function ArchivePage({ kind, term, page, extra }) {
     itemListElement: posts.map((p, i) => ({
       "@type": "ListItem",
       position: (page - 1) * 12 + i + 1,
-      url: absUrl(`/post/${p.slug}`),
+      url: absUrl(`/${p.slug}`),
       name: p.title,
     })),
   };

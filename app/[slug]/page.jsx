@@ -19,7 +19,7 @@ export async function generateMetadata({ params }) {
   if (!post) {
     return { title: "ไม่พบบทความ", robots: { index: false, follow: false } };
   }
-  const canonicalPath = `/post/${post.slug}`;
+  const canonicalPath = `/${post.slug}`;
   return yoastToMetadata(post.yoast, {
     canonicalPath,
     fallback: {
@@ -45,7 +45,7 @@ export default async function PostPage({ params }) {
   const articleUrl = `${SITE_URL}/post/${post.slug}`;
 
   // Prefer Yoast's schema graph if available, otherwise fall back to our own
-  const yoastGraph = yoastSchema(post.yoast, `/post/${post.slug}`);
+  const yoastGraph = yoastSchema(post.yoast, `/${post.slug}`);
   const articleJsonLd = yoastGraph || {
     "@context": "https://schema.org",
     "@type": "NewsArticle",

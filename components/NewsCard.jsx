@@ -36,7 +36,7 @@ function Meta({ post, light = false }) {
 /** Featured hero card — massive, immersive */
 export function HeroCard({ post }) {
   if (!post) return null;
-  const href = `/post/${post.slug}`;
+  const href = `/${post.slug}`;
   return (
     <article className="group relative block h-[70vh] min-h-[520px] overflow-hidden rounded-2xl bg-ink">
       <Link href={href} aria-label={post.title} className="absolute inset-0 z-0">
@@ -87,7 +87,7 @@ export function NewsCard({ post, size = "md", variant = "default" }) {
     lg: { title: "text-xl md:text-2xl", imgH: "aspect-[16/9]" },
   };
   const s = sizes[size] || sizes.md;
-  const href = `/post/${post.slug}`;
+  const href = `/${post.slug}`;
 
   return (
     <article className="group">
@@ -135,7 +135,7 @@ export function NewsCard({ post, size = "md", variant = "default" }) {
 /** Horizontal small row — for sidebars & lists */
 export function RowCard({ post, index }) {
   if (!post) return null;
-  const href = `/post/${post.slug}`;
+  const href = `/${post.slug}`;
   return (
     <article className="group flex items-start gap-4">
       {typeof index === "number" && (
@@ -175,7 +175,7 @@ export function RowCard({ post, index }) {
 /** Magazine-style horizontal card — image left, text right */
 export function MagCard({ post }) {
   if (!post) return null;
-  const href = `/post/${post.slug}`;
+  const href = `/${post.slug}`;
   return (
     <article className="group grid grid-cols-[1.1fr,1fr] gap-5">
       <div className="relative">

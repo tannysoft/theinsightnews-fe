@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { formatDate, relativeTime } from "@/lib/api";
+import { formatDate, relativeTime, pickImage } from "@/lib/api";
 
 function Category({ cats, className = "" }) {
   if (!cats?.length) return null;
@@ -37,12 +37,13 @@ function Meta({ post, light = false }) {
 export function HeroCard({ post }) {
   if (!post) return null;
   const href = `/${post.slug}`;
+  const img = pickImage(post, "large");
   return (
     <article className="group relative block h-[70vh] min-h-[520px] overflow-hidden rounded-2xl bg-ink">
       <Link href={href} aria-label={post.title} className="absolute inset-0 z-0">
-        {post.featuredImage && (
+        {img && (
           <Image
-            src={post.featuredImage}
+            src={img}
             alt={post.featuredAlt || post.title}
             fill
             sizes="(max-width: 1024px) 100vw, 70vw"
@@ -82,12 +83,13 @@ export function NewsCard({ post, size = "md", variant = "default" }) {
   if (!post) return null;
 
   const sizes = {
-    sm: { title: "text-base", imgH: "aspect-[16/10]" },
-    md: { title: "text-lg md:text-xl", imgH: "aspect-[16/10]" },
-    lg: { title: "text-xl md:text-2xl", imgH: "aspect-[16/9]" },
+    sm: { title: "text-base", imgH: "aspect-[16/10]", wpSize: "medium" },
+    md: { title: "text-lg md:text-xl", imgH: "aspect-[16/10]", wpSize: "medium_large" },
+    lg: { title: "text-xl md:text-2xl", imgH: "aspect-[16/9]", wpSize: "large" },
   };
   const s = sizes[size] || sizes.md;
   const href = `/${post.slug}`;
+  const img = pickImage(post, s.wpSize);
 
   return (
     <article className="group">
@@ -97,9 +99,9 @@ export function NewsCard({ post, size = "md", variant = "default" }) {
           aria-label={post.title}
           className={`relative block ${s.imgH} overflow-hidden rounded-lg bg-paper-warm`}
         >
-          {post.featuredImage ? (
+          {img ? (
             <Image
-              src={post.featuredImage}
+              src={img}
               alt={post.featuredAlt || post.title}
               fill
               sizes="(max-width: 768px) 100vw, 33vw"
@@ -153,21 +155,25 @@ export function RowCard({ post, index }) {
           <Meta post={post} />
         </div>
       </div>
-      {post.featuredImage && (
-        <Link
-          href={href}
-          aria-label={post.title}
-          className="relative aspect-square w-24 shrink-0 overflow-hidden rounded-md bg-paper-warm"
-        >
-          <Image
-            src={post.featuredImage}
-            alt={post.featuredAlt || post.title}
-            fill
-            sizes="96px"
-            className="object-cover transition duration-500 group-hover:scale-[1.06]"
-          />
-        </Link>
-      )}
+      {(() => {
+        const img = pickImage(post, "thumbnail");
+        if (!img) return null;
+        return (
+          <Link
+            href={href}
+            aria-label={post.title}
+            className="relative aspect-square w-24 shrink-0 overflow-hidden rounded-md bg-paper-warm"
+          >
+            <Image
+              src={img}
+              alt={post.featuredAlt || post.title}
+              fill
+              sizes="96px"
+              className="object-cover transition duration-500 group-hover:scale-[1.06]"
+            />
+          </Link>
+        );
+      })()}
     </article>
   );
 }
@@ -176,6 +182,7 @@ export function RowCard({ post, index }) {
 export function MagCard({ post }) {
   if (!post) return null;
   const href = `/${post.slug}`;
+  const img = pickImage(post, "medium_large");
   return (
     <article className="group grid grid-cols-[1.1fr,1fr] gap-5">
       <div className="relative">
@@ -184,9 +191,9 @@ export function MagCard({ post }) {
           aria-label={post.title}
           className="relative block aspect-[4/3] overflow-hidden rounded-lg bg-paper-warm"
         >
-          {post.featuredImage && (
+          {img && (
             <Image
-              src={post.featuredImage}
+              src={img}
               alt={post.featuredAlt || post.title}
               fill
               sizes="(max-width: 768px) 100vw, 50vw"

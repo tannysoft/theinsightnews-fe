@@ -11,3 +11,9 @@ yarn-debug.log*
 yarn-error.log*
 .vscode
 .idea
+
+# Cloudflare / OpenNext
+.open-next
+.wrangler
+.dev.vars
+cloudflare-env.d.ts

@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BreakingTicker from "@/components/BreakingTicker";
 import CookieNotice from "@/components/CookieNotice";
+import Analytics from "@/components/Analytics";
 import { SITE, absUrl, safeJsonLd } from "@/lib/site";
 
 export const metadata = {
@@ -138,6 +139,7 @@ export default function RootLayout({ children }) {
         <main id="main-content" className="flex-1">{children}</main>
         <Footer />
         <CookieNotice />
+        <Analytics />
       </body>
     </html>
   );

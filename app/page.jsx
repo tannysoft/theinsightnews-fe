@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPosts, SECTION_MAP, formatDate, getPopularTags, decodeHtml } from "@/lib/api";
+import { getPosts, SECTION_MAP, formatDate, getPopularTags, decodeHtml, pickImage } from "@/lib/api";
 import { NewsCard, RowCard, MagCard } from "@/components/NewsCard";
 import HeroSlider from "@/components/HeroSlider";
 import SectionHeader from "@/components/SectionHeader";
@@ -231,12 +231,13 @@ export default async function HomePage() {
 }
 
 function DarkFeature({ post }) {
+  const img = pickImage(post, "large");
   return (
     <article className="group">
       <Link href={`/${post.slug}`} className="relative block aspect-[16/9] overflow-hidden rounded-xl bg-white/5">
-        {post.featuredImage && (
+        {img && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.featuredImage} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+          <img src={img} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       </Link>
@@ -320,12 +321,13 @@ function TagCloud({ tags }) {
 }
 
 function DarkRow({ post }) {
+  const img = pickImage(post, "thumbnail");
   return (
     <article className="group grid grid-cols-[140px,1fr] gap-4">
       <Link href={`/${post.slug}`} className="relative aspect-[10/9] overflow-hidden rounded-md bg-white/5">
-        {post.featuredImage && (
+        {img && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.featuredImage} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.06]" />
+          <img src={img} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.06]" />
         )}
       </Link>
       <div>

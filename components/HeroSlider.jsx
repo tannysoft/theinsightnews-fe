@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { relativeTime } from "@/lib/api";
+import { relativeTime, pickImage } from "@/lib/api";
 
 const AUTOPLAY_MS = 6500;
 
@@ -48,6 +48,7 @@ export default function HeroSlider({ posts = [] }) {
       {/* Slides */}
       {slides.map((post, i) => {
         const active = i === idx;
+        const img = pickImage(post, "large");
         return (
           <div
             key={post.id}
@@ -56,9 +57,9 @@ export default function HeroSlider({ posts = [] }) {
             }`}
             aria-hidden={!active}
           >
-            {post.featuredImage && (
+            {img && (
               <Image
-                src={post.featuredImage}
+                src={img}
                 alt={post.featuredAlt || post.title}
                 fill
                 sizes="100vw"

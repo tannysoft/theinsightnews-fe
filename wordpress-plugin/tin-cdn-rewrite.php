@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Headless Helpers
- * Description: Three helpers for running WordPress headless behind a separate frontend — (1) optionally rewrites /wp-content/uploads/* URLs to a dedicated CDN host, (2) fires on-demand ISR revalidation on the frontend when a post is saved + exposes a manual "Clear cache" button in the editor, (3) makes admin "View Post" links point to the frontend. Site-agnostic — drop it into any WP install and configure via Settings → Headless.
- * Version: 1.3.0
+ * Description: Four helpers for running WordPress headless behind a separate frontend — (1) optionally rewrites /wp-content/uploads/* URLs to a dedicated CDN host, (2) fires on-demand ISR revalidation on the frontend when a post is saved + exposes a manual "Clear cache" button in the editor, (3) makes admin "View Post" links point to the frontend while keeping REST / admin / login URLs on the origin, (4) ensures logged-in users with admin access actually land in wp-admin after login (fixes headless redirect-to-frontend bug). Site-agnostic — drop it into any WP install and configure via Settings → Headless.
+ * Version: 1.4.0
  * License: GPL-2.0+
  *
  * How to install:
@@ -538,6 +538,97 @@ add_filter('rest_url', function ($url) {
     }
     if (strpos($url, $home) === 0) {
         return $site . substr($url, strlen($home));
+    }
+    return $url;
+}, 99);
+
+/* =========================================================================
+ * 4) Login / admin redirect safety
+ *
+ * On headless installs:
+ *   - WP_HOME     = public frontend  (home_url())
+ *   - WP_SITEURL  = admin origin     (site_url())
+ *
+ * WordPress computes the post-login `redirect_to` using `home_url()` in a
+ * few code paths (referer fallback, subscriber default, etc.), which can
+ * push users who actually have admin access onto the frontend — where
+ * wp-admin doesn't exist. And `wp_safe_redirect()` bounces admin-origin
+ * URLs back to home if the admin host isn't in `allowed_redirect_hosts`.
+ *
+ * These two filters close both gaps.
+ * ========================================================================= */
+
+/**
+ * Keep the admin origin host in the wp_safe_redirect() allow-list so
+ * admin-dashboard redirects aren't silently downgraded to home_url.
+ */
+add_filter('allowed_redirect_hosts', function ($hosts) {
+    $parts = wp_parse_url(tin_origin_url());
+    if (!empty($parts['host']) && !in_array($parts['host'], (array) $hosts, true)) {
+        $hosts[] = $parts['host'];
+    }
+    return $hosts;
+});
+
+/**
+ * If the post-login redirect would land a logged-in user on the FE, but
+ * they actually have at least `read` capability (i.e. any real WP user),
+ * send them to the admin dashboard instead. Respects an explicit
+ * redirect_to — only rewrites when redirect_to defaults to the FE home.
+ */
+add_filter('login_redirect', function ($redirect_to, $requested_redirect_to, $user) {
+    if (!($user instanceof WP_User)) {
+        return $redirect_to;
+    }
+    $origin = tin_origin_url();
+    $home   = untrailingslashit(tin_frontend_url());
+    if ($origin === $home) {
+        return $redirect_to; // Not a split-host install, nothing to do.
+    }
+
+    $target         = (string) $redirect_to;
+    $explicit       = !empty($requested_redirect_to);
+    $target_is_home = $target !== '' && (
+        $target === $home ||
+        $target === $home . '/' ||
+        strpos(rtrim($target, '/'), $home) === 0
+    );
+
+    // Only intervene when (a) the redirect defaults to the frontend home
+    // without the user asking for that explicitly, and (b) the user can
+    // actually use the admin.
+    if (!$explicit && $target_is_home && user_can($user, 'read')) {
+        // Editors/authors/admins go to the dashboard, subscribers to their
+        // profile — matches WP defaults for a non-headless install.
+        return user_can($user, 'edit_posts') ? admin_url() : admin_url('profile.php');
+    }
+    return $redirect_to;
+}, 20, 3);
+
+/**
+ * Final safety net: if something up the chain has already rewritten the
+ * admin host to the FE inside admin-context URLs, put it back.
+ */
+add_filter('admin_url', function ($url) {
+    $origin = tin_origin_url();
+    $home   = untrailingslashit(tin_frontend_url());
+    if ($origin === $home || !is_string($url) || $url === '') {
+        return $url;
+    }
+    if (strpos($url, $home . '/wp-admin') === 0) {
+        return $origin . substr($url, strlen($home));
+    }
+    return $url;
+}, 99);
+
+add_filter('login_url', function ($url) {
+    $origin = tin_origin_url();
+    $home   = untrailingslashit(tin_frontend_url());
+    if ($origin === $home || !is_string($url) || $url === '') {
+        return $url;
+    }
+    if (strpos($url, $home . '/wp-login') === 0) {
+        return $origin . substr($url, strlen($home));
     }
     return $url;
 }, 99);

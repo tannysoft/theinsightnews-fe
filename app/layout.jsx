@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BreakingTicker from "@/components/BreakingTicker";
 import CookieNotice from "@/components/CookieNotice";
+import Analytics from "@/components/Analytics";
 import { SITE, absUrl, safeJsonLd } from "@/lib/site";
 
 export const metadata = {
@@ -31,7 +32,10 @@ export const metadata = {
     canonical: SITE.url,
     types: {
       "application/rss+xml": [
-        { url: "https://www.theinsightnews.co/feed", title: `${SITE.name} RSS` },
+        { url: absUrl("/feed"), title: `${SITE.name} » Feed` },
+      ],
+      "application/atom+xml": [
+        { url: absUrl("/feed/atom"), title: `${SITE.name} » Atom Feed` },
       ],
     },
   },
@@ -138,6 +142,7 @@ export default function RootLayout({ children }) {
         <main id="main-content" className="flex-1">{children}</main>
         <Footer />
         <CookieNotice />
+        <Analytics />
       </body>
     </html>
   );

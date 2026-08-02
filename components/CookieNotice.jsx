@@ -33,10 +33,13 @@ function writeConsent(consent) {
   window.dispatchEvent(new CustomEvent("tin:consent", { detail: consent }));
 }
 
+// Default stance is "opt-out": cookies are on unless the user explicitly
+// toggles them off in the details panel or clicks reject. This matches the
+// notice-style UX we want (inform, don't block).
 const DEFAULT = {
   necessary: true, // always on
-  analytics: false,
-  marketing: false,
+  analytics: true,
+  marketing: true,
 };
 
 export default function CookieNotice() {

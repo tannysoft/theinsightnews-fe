@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPosts, SECTION_MAP, formatDate, getPopularTags, decodeHtml } from "@/lib/api";
+import { getPosts, SECTION_MAP, formatDate, getPopularTags, decodeHtml, pickImage } from "@/lib/api";
 import { NewsCard, RowCard, MagCard } from "@/components/NewsCard";
 import HeroSlider from "@/components/HeroSlider";
 import SectionHeader from "@/components/SectionHeader";
@@ -128,7 +128,7 @@ export default async function HomePage() {
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div className="min-w-0">
-                      <Link href={`/post/${p.slug}`}>
+                      <Link href={`/${p.slug}`}>
                         <h4 className="headline text-sm transition hover:text-brand line-clamp-3">{p.title}</h4>
                       </Link>
                       <p className="mt-1.5 text-[11px] text-ink-muted">{formatDate(p.date, { short: true })}</p>
@@ -231,18 +231,19 @@ export default async function HomePage() {
 }
 
 function DarkFeature({ post }) {
+  const img = pickImage(post, "large");
   return (
     <article className="group">
-      <Link href={`/post/${post.slug}`} className="relative block aspect-[16/9] overflow-hidden rounded-xl bg-white/5">
-        {post.featuredImage && (
+      <Link href={`/${post.slug}`} className="relative block aspect-[16/9] overflow-hidden rounded-xl bg-white/5">
+        {img && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.featuredImage} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+          <img src={img} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       </Link>
       <div className="mt-4">
         <span className="eyebrow text-brand-400">{post.categories?.[0]?.name || "Analysis"}</span>
-        <Link href={`/post/${post.slug}`}>
+        <Link href={`/${post.slug}`}>
           <h3 className="headline mt-2 text-2xl text-white transition hover:text-brand-400 md:text-3xl line-clamp-3">
             {post.title}
           </h3>
@@ -320,17 +321,18 @@ function TagCloud({ tags }) {
 }
 
 function DarkRow({ post }) {
+  const img = pickImage(post, "thumbnail");
   return (
     <article className="group grid grid-cols-[140px,1fr] gap-4">
-      <Link href={`/post/${post.slug}`} className="relative aspect-[10/9] overflow-hidden rounded-md bg-white/5">
-        {post.featuredImage && (
+      <Link href={`/${post.slug}`} className="relative aspect-[10/9] overflow-hidden rounded-md bg-white/5">
+        {img && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.featuredImage} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.06]" />
+          <img src={img} alt={post.featuredAlt || post.title} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.06]" />
         )}
       </Link>
       <div>
         <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-brand-400">{post.categories?.[0]?.name || "Insight"}</span>
-        <Link href={`/post/${post.slug}`}>
+        <Link href={`/${post.slug}`}>
           <h4 className="headline mt-1 text-base text-white transition hover:text-brand-400 line-clamp-3">{post.title}</h4>
         </Link>
         <p className="mt-2 text-[11px] text-white/60">{formatDate(post.date, { short: true })} · {post.reading} min</p>

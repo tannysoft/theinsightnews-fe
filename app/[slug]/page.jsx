@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import parse from "html-react-parser";
-import { getPost, getPosts, formatDate, stripHtml } from "@/lib/api";
+import { getPost, getPosts, formatDate, stripHtml, pickImage, resolveOldSlug } from "@/lib/api";
 import { NewsCard, RowCard } from "@/components/NewsCard";
 import ShareButtons from "@/components/ShareButtons";
 import ArticleEnhancer from "@/components/ArticleEnhancer";
@@ -17,9 +17,11 @@ export async function generateMetadata({ params }) {
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) {
+    // Keep metadata cheap here: if this turns out to be an old slug, the page
+    // handler below will 308-redirect before metadata is ever rendered.
     return { title: "ไม่พบบทความ", robots: { index: false, follow: false } };
   }
-  const canonicalPath = `/post/${post.slug}`;
+  const canonicalPath = `/${post.slug}`;
   return yoastToMetadata(post.yoast, {
     canonicalPath,
     fallback: {
@@ -33,7 +35,12 @@ export async function generateMetadata({ params }) {
 export default async function PostPage({ params }) {
   const { slug } = await params;
   const post = await getPost(slug);
-  if (!post) notFound();
+  if (!post) {
+    // Before 404-ing, check WP for an old-slug → new-slug mapping.
+    const newSlug = await resolveOldSlug(slug);
+    if (newSlug) redirect(`/${newSlug}`);
+    notFound();
+  }
 
   const catIds = post.categories.map((c) => c.id).join(",");
   const relatedRes = catIds
@@ -45,7 +52,7 @@ export default async function PostPage({ params }) {
   const articleUrl = `${SITE_URL}/post/${post.slug}`;
 
   // Prefer Yoast's schema graph if available, otherwise fall back to our own
-  const yoastGraph = yoastSchema(post.yoast, `/post/${post.slug}`);
+  const yoastGraph = yoastSchema(post.yoast, `/${post.slug}`);
   const articleJsonLd = yoastGraph || {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -113,16 +120,20 @@ export default async function PostPage({ params }) {
       <header className="relative overflow-hidden bg-ink text-white">
         {/* Image area */}
         <div className="relative h-[calc(68vh-20px)] min-h-[460px] w-full md:h-[calc(80vh-20px)] md:min-h-[620px]">
-          {post.featuredImage && (
-            <Image
-              src={post.featuredImage}
-              alt={post.featuredAlt || post.title}
-              fill
-              sizes="100vw"
-              priority
-              className="absolute inset-0 object-cover"
-            />
-          )}
+          {(() => {
+            const heroImg = pickImage(post, "full");
+            if (!heroImg) return null;
+            return (
+              <Image
+                src={heroImg}
+                alt={post.featuredAlt || post.title}
+                fill
+                sizes="100vw"
+                priority
+                className="absolute inset-0 object-cover"
+              />
+            );
+          })()}
           {/* Bottom-only gradient — thin veil for title contrast */}
           <div className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
 

@@ -1,0 +1,59 @@
+/**
+ * Cloudflare Workers config for Next.js via @opennextjs/cloudflare.
+ * Docs: https://opennext.js.org/cloudflare
+ *
+ * Setup steps (once):
+ *   1) pnpm install
+ *   2) npx wrangler login
+ *   3) Create the ISR cache KV namespace:
+ *        npx wrangler kv namespace create NEXT_INC_CACHE_KV
+ *      Paste the returned `id` into the `kv_namespaces` entry below.
+ *   4) (Optional) Create a preview namespace for local/preview builds:
+ *        npx wrangler kv namespace create NEXT_INC_CACHE_KV --preview
+ *      Paste the `preview_id` below.
+ *   5) Bind a custom domain: set `routes` below, or add it in the
+ *      Cloudflare dashboard (Workers & Pages → this worker → Settings →
+ *      Triggers → Custom Domains).
+ *
+ * Day-to-day:
+ *   pnpm preview   # build + run locally via wrangler
+ *   pnpm deploy    # build + publish to Cloudflare
+ *
+ * Clearing ISR cache:
+ *   - Call revalidatePath() / revalidateTag() from a Server Action / route handler
+ *   - Or: npx wrangler kv key list --binding NEXT_INC_CACHE_KV
+ *         npx wrangler kv key delete <key> --binding NEXT_INC_CACHE_KV
+ *   - Or: nuke everything by redeploying after `wrangler kv namespace delete`
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "theinsightnews-fe",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2025-03-25",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".open-next/assets"
+	},
+	"observability": {
+		"enabled": true
+	},
+	// ISR / Data cache backed by Workers KV.
+	// After running `wrangler kv namespace create NEXT_INC_CACHE_KV`,
+	// paste the returned IDs here.
+	"kv_namespaces": [
+		{
+			"binding": "NEXT_INC_CACHE_KV",
+			"id": "aa5a41147d4b49ce9805ba1ccc9d0a6d",
+			"preview_id": "3ea3f06915554f439f55c86fdb514659"
+		}
+	]
+	// Custom domain — uncomment and set after DNS is pointed at Cloudflare.
+	// Alternatively, bind it in the Cloudflare dashboard (recommended for first-time setup).
+	// ,"routes": [
+	// 	{ "pattern": "www.theinsightnews.co", "custom_domain": true }
+	// ]
+}

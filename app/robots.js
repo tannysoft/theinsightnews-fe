@@ -14,7 +14,7 @@ export default function robots() {
         disallow: ["/search", "/search?*", "/_next/", "/api/"],
       },
     ],
-    sitemap: `${SITE.url}/sitemap.xml`,
+    sitemap: `${SITE.url}/sitemap_index.xml`,
     host: SITE.url,
   };
 }

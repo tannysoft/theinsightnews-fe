@@ -13,6 +13,7 @@ export async function generateMetadata({ params }) {
   const name = decodeHtml(cat.name);
   return yoastToMetadata(cat.yoast_head_json, {
     canonicalPath: `/category/${slug}`,
+    feedPath: `/category/${slug}/feed`,
     fallback: {
       title: name,
       description: decodeHtml(

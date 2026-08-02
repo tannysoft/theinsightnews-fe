@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Headless Helpers
  * Description: Six helpers for running WordPress headless behind a separate frontend — (1) optionally rewrites /wp-content/uploads/* URLs to a dedicated CDN host, (2) fires on-demand ISR revalidation on the frontend when a post is saved + exposes a manual "Clear cache" button in the editor, (3) makes admin "View Post" links point to the frontend while keeping REST / admin / login URLs on the origin, (4) ensures logged-in users with admin access actually land in wp-admin after login (fixes headless redirect-to-frontend bug), (5) 301-redirects public page views to the configured frontend host, leaving wp-admin / wp-json / login / uploads untouched, (6) exposes GET /wp-json/tin/v1/posts — the same query surface as /wp/v2/posts but with the featured image, author, terms and reading time inlined, so clients never need the heavyweight `_embed`. Site-agnostic — drop it into any WP install and configure via Settings → Headless.
- * Version: 1.8.0
+ * Version: 1.8.1
  * License: GPL-2.0+
  *
  * How to install:
@@ -773,11 +773,37 @@ function tin_is_backend_path($path) {
 }
 
 /**
- * Current request path (with query string) relative to the WP install root.
+ * The REQUEST_URI as it arrived, captured before anything can rewrite it.
+ *
+ * Login-hardening plugins (WPS Hide Login and friends) overwrite
+ * `$_SERVER['REQUEST_URI']` on `plugins_loaded` with a decoy path — a run of
+ * "-/" segments — so that a request for wp-login.php falls through to a 404
+ * instead of the login form. By the time our `init` callback runs the request
+ * no longer looks like /wp-login.php, and we'd bounce that decoy to the
+ * frontend. Priming this at file-load time beats every `plugins_loaded`
+ * callback regardless of plugin order.
+ */
+function tin_original_request_uri() {
+    static $uri = '';
+    // Only latch a non-empty value. Under SAPIs where REQUEST_URI isn't
+    // populated at include time, freezing '' would make every page look like
+    // '/' and send the whole site to the frontend root.
+    if ($uri === '' && !empty($_SERVER['REQUEST_URI'])) {
+        $uri = (string) $_SERVER['REQUEST_URI'];
+    }
+    return $uri !== '' ? $uri : '/';
+}
+tin_original_request_uri();
+
+/**
+ * A request path (with query string) relative to the WP install root.
  * Returns '' when the request doesn't live under the install root.
  */
-function tin_current_request_path() {
-    $uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '/';
+function tin_request_path($uri = null) {
+    if ($uri === null) {
+        $uri = tin_original_request_uri();
+    }
+    $uri = (string) $uri;
     if ($uri === '') {
         $uri = '/';
     }
@@ -790,6 +816,11 @@ function tin_current_request_path() {
         $uri = substr($uri, strlen($base));
     }
     return $uri === '' ? '/' : $uri;
+}
+
+/** Back-compat alias. */
+function tin_current_request_path() {
+    return tin_request_path();
 }
 
 /**
@@ -820,7 +851,14 @@ function tin_skip_frontend_redirect($path) {
     if ($method !== 'GET' && $method !== 'HEAD') {
         return true;
     }
+    // Check the URI as it arrived *and* as it stands now — either looking
+    // like a backend path is enough to leave the request alone.
     if (tin_is_backend_path($path)) {
+        return true;
+    }
+    $live = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+    if ($live !== '' && $live !== tin_original_request_uri()
+        && tin_is_backend_path(tin_request_path($live))) {
         return true;
     }
     // Previews and the customizer deliberately run on the origin host — they
@@ -878,7 +916,9 @@ function tin_maybe_redirect_to_frontend() {
         return;
     }
 
-    $path = tin_current_request_path();
+    // Redirect the path the visitor actually asked for, not one a plugin
+    // rewrote internally along the way.
+    $path = tin_request_path();
     if (tin_skip_frontend_redirect($path)) {
         return;
     }

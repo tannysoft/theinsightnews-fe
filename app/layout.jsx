@@ -89,12 +89,7 @@ const ORG_JSONLD = {
   logo: absUrl(SITE.logo),
   description: SITE.description,
   foundingDate: SITE.foundingDate,
-  sameAs: [
-    `https://twitter.com/${SITE.twitter.replace(/^@/, "")}`,
-    `https://www.facebook.com/${SITE.facebook}`,
-    `https://www.youtube.com/@${SITE.facebook}`,
-    `https://www.instagram.com/${SITE.facebook}`,
-  ],
+  sameAs: SITE.socialProfiles,
 };
 
 const WEBSITE_JSONLD = {

@@ -32,7 +32,10 @@ export const metadata = {
     canonical: SITE.url,
     types: {
       "application/rss+xml": [
-        { url: "https://www.theinsightnews.co/feed", title: `${SITE.name} RSS` },
+        { url: absUrl("/feed"), title: `${SITE.name} » Feed` },
+      ],
+      "application/atom+xml": [
+        { url: absUrl("/feed/atom"), title: `${SITE.name} » Atom Feed` },
       ],
     },
   },

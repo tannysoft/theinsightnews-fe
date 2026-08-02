@@ -11,6 +11,19 @@ const nextConfig = {
       },
     ];
   },
+  // Paginated sub-sitemaps keep Rank Math's public URL shape
+  // (`/post-sitemap2.xml`, `/post_tag-sitemap12.xml`) while being served by a
+  // single handler. Page 1 of each type has its own route file, so only the
+  // numbered variants need rewriting — `app/[slug]` owns the root dynamic
+  // segment, which rules out a root-level catch-all route.
+  async rewrites() {
+    return [
+      {
+        source: "/:type-sitemap:page(\\d+).xml",
+        destination: "/api/sitemap/:type/:page",
+      },
+    ];
+  },
   images: {
     // We deploy to Cloudflare Workers without Cloudflare Images, so skip
     // Next's default image optimizer (which requires Node fs / sharp). Images

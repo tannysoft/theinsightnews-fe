@@ -1,15 +1,10 @@
 import { SITE } from "@/lib/site";
-import { buildIndex, XML_RESPONSE_HEADERS } from "@/lib/sitemap-xml";
 
-export const revalidate = 1800; // 30 min
+// Rank Math treats `/sitemap_index.xml` as the one true index and permanently
+// redirects `/sitemap.xml` to it, so older Search Console submissions and any
+// stale links keep resolving. We do the same.
+export const dynamic = "force-static";
 
 export async function GET() {
-  const now = new Date();
-  const sitemaps = [
-    { loc: `${SITE.url}/post-sitemap.xml`, lastmod: now },
-    { loc: `${SITE.url}/category-sitemap.xml`, lastmod: now },
-    { loc: `${SITE.url}/post_tag-sitemap.xml`, lastmod: now },
-    { loc: `${SITE.url}/page-sitemap.xml`, lastmod: now },
-  ];
-  return new Response(buildIndex(sitemaps), { headers: XML_RESPONSE_HEADERS });
+  return Response.redirect(`${SITE.url}/sitemap_index.xml`, 301);
 }

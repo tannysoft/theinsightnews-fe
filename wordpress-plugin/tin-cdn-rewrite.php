@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Headless Helpers
  * Description: Six helpers for running WordPress headless behind a separate frontend — (1) optionally rewrites /wp-content/uploads/* URLs to a dedicated CDN host, (2) fires on-demand ISR revalidation on the frontend when a post is saved + exposes a manual "Clear cache" button in the editor, (3) makes admin "View Post" links point to the frontend while keeping REST / admin / login URLs on the origin, (4) ensures logged-in users with admin access actually land in wp-admin after login (fixes headless redirect-to-frontend bug), (5) 301-redirects public page views to the configured frontend host, leaving wp-admin / wp-json / login / uploads untouched, (6) exposes GET /wp-json/tin/v1/posts — the same query surface as /wp/v2/posts but with the featured image, author, terms and reading time inlined, so clients never need the heavyweight `_embed`. Site-agnostic — drop it into any WP install and configure via Settings → Headless.
- * Version: 1.8.1
+ * Version: 1.9.0
  * License: GPL-2.0+
  *
  * How to install:
@@ -1076,6 +1076,42 @@ function tin_rest_featured_image($post_id) {
     ];
 }
 
+/**
+ * Every image the post references: the featured one first, then whatever the
+ * content embeds. Image sitemaps want all of them, not just the thumbnail.
+ *
+ * Scanned off the raw content rather than the rendered output so list
+ * responses don't have to run the `the_content` filter chain; CDN rewriting
+ * is applied per URL instead.
+ */
+function tin_rest_post_images($post, $featured) {
+    $urls = [];
+    if (!empty($featured['url'])) {
+        $urls[] = $featured['url'];
+    }
+
+    if (preg_match_all(
+        '/<img[^>]+src\s*=\s*["\']([^"\']+)["\']/i',
+        (string) $post->post_content,
+        $matches
+    )) {
+        foreach ($matches[1] as $src) {
+            $src = trim(html_entity_decode($src, ENT_QUOTES, 'UTF-8'));
+            // Skip inline data URIs and anything not absolute — a sitemap
+            // entry needs a resolvable URL.
+            if ($src === '' || stripos($src, 'data:') === 0) {
+                continue;
+            }
+            if (stripos($src, 'http://') !== 0 && stripos($src, 'https://') !== 0) {
+                continue;
+            }
+            $urls[] = tin_cdn_rewrite($src);
+        }
+    }
+
+    return array_values(array_unique($urls));
+}
+
 function tin_rest_terms($post_id, $taxonomy) {
     $terms = get_the_terms($post_id, $taxonomy);
     if (!$terms || is_wp_error($terms)) {
@@ -1126,6 +1162,7 @@ function tin_rest_post_item($post, $full = false) {
     }
 
     $author_id = (int) $post->post_author;
+    $featured  = tin_rest_featured_image($id);
 
     $item = [
         'id'           => $id,
@@ -1139,7 +1176,8 @@ function tin_rest_post_item($post, $full = false) {
         'excerpt'      => $excerpt,
         'reading'      => tin_reading_minutes($post->post_content),
         'sticky'       => is_sticky($id),
-        'featured'     => tin_rest_featured_image($id),
+        'featured'     => $featured,
+        'images'       => tin_rest_post_images($post, $featured),
         'author'       => [
             'id'          => $author_id,
             'name'        => get_the_author_meta('display_name', $author_id),

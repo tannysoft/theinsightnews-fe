@@ -11,16 +11,22 @@ const nextConfig = {
       },
     ];
   },
-  // Paginated sub-sitemaps keep Rank Math's public URL shape
-  // (`/post-sitemap2.xml`, `/post_tag-sitemap12.xml`) while being served by a
-  // single handler. Page 1 of each type has its own route file, so only the
-  // numbered variants need rewriting — `app/[slug]` owns the root dynamic
-  // segment, which rules out a root-level catch-all route.
+  // Sub-sitemaps keep Rank Math's public URL shape — `/page-sitemap.xml` for
+  // a single-page type, `/post-sitemap1.xml` … `/post-sitemap7.xml` once a
+  // type spans more than one — while a single handler serves them all.
+  // `app/[slug]` owns the root dynamic segment, which rules out a root-level
+  // catch-all route, hence the rewrite.
   async rewrites() {
     return [
       {
         source: "/:type-sitemap:page(\\d+).xml",
         destination: "/api/sitemap/:type/:page",
+      },
+      // Unnumbered form. Still served for multi-page types so older links
+      // and Search Console submissions keep resolving to page 1.
+      {
+        source: "/:type-sitemap.xml",
+        destination: "/api/sitemap/:type/1",
       },
     ];
   },

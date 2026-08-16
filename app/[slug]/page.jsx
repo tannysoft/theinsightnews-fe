@@ -13,6 +13,20 @@ const SITE_URL = SITE.url;
 
 export const revalidate = 300;
 
+/** True when a schema graph already contains a BreadcrumbList node. */
+function hasBreadcrumb(schema) {
+  if (!schema) return false;
+  const nodes = Array.isArray(schema?.["@graph"])
+    ? schema["@graph"]
+    : Array.isArray(schema)
+      ? schema
+      : [schema];
+  return nodes.some((node) => {
+    const t = node?.["@type"];
+    return Array.isArray(t) ? t.includes("BreadcrumbList") : t === "BreadcrumbList";
+  });
+}
+
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const post = await getPost(slug);
@@ -49,7 +63,9 @@ export default async function PostPage({ params }) {
 
   const trendingRes = await getPosts({ perPage: 5, exclude: post.id });
 
-  const articleUrl = `${SITE_URL}/post/${post.slug}`;
+  // Posts live at the site root. `/post/<slug>` only survives as a 308 to
+  // here, so it must never be what we publish in schema or share links.
+  const articleUrl = `${SITE_URL}/${post.slug}`;
 
   // Prefer Yoast's schema graph if available, otherwise fall back to our own
   const yoastGraph = yoastSchema(post.yoast, `/${post.slug}`);
@@ -82,29 +98,33 @@ export default async function PostPage({ params }) {
     wordCount: stripHtml(post.content).split(/\s+/).filter(Boolean).length,
   };
 
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-      ...(post.categories?.[0]
-        ? [
-            {
-              "@type": "ListItem",
-              position: 2,
-              name: post.categories[0].name,
-              item: `${SITE_URL}/category/${post.categories[0].slug}`,
-            },
-          ]
-        : []),
-      {
-        "@type": "ListItem",
-        position: post.categories?.[0] ? 3 : 2,
-        name: post.title,
-        item: articleUrl,
-      },
-    ],
-  };
+  // Yoast's graph already carries a BreadcrumbList, so only build our own when
+  // it doesn't — two BreadcrumbLists on one page is a contradictory trail.
+  const breadcrumbJsonLd = hasBreadcrumb(yoastGraph)
+    ? null
+    : {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+          ...(post.categories?.[0]
+            ? [
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: post.categories[0].name,
+                  item: `${SITE_URL}/category/${post.categories[0].slug}`,
+                },
+              ]
+            : []),
+          {
+            "@type": "ListItem",
+            position: post.categories?.[0] ? 3 : 2,
+            name: post.title,
+            item: articleUrl,
+          },
+        ],
+      };
 
   return (
     <article>
@@ -112,10 +132,12 @@ export default async function PostPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(articleJsonLd) }}
       />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
-      />
+      {breadcrumbJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
+        />
+      )}
       {/* Hero — image-forward */}
       <header className="relative overflow-hidden bg-ink text-white">
         {/* Image area */}
@@ -130,7 +152,10 @@ export default async function PostPage({ params }) {
                 fill
                 sizes="100vw"
                 priority
-                className="absolute inset-0 object-cover"
+                // Anchored near the top, not centred: the hero crops a
+                // 16:9 image into a tall viewport, and centring cuts the
+                // heads off the people the photo is about.
+                className="absolute inset-0 object-cover object-[50%_20%]"
               />
             );
           })()}
@@ -178,7 +203,15 @@ export default async function PostPage({ params }) {
                       </div>
                     )}
                     <div>
-                      <div className="text-sm font-semibold text-white">{post.author.name}</div>
+                      <div className="text-sm font-semibold text-white">
+                        {post.author.slug ? (
+                          <Link href={`/author/${post.author.slug}`} className="hover:text-brand-400">
+                            {post.author.name}
+                          </Link>
+                        ) : (
+                          post.author.name
+                        )}
+                      </div>
                       <div className="text-[11px] text-white/70">กองบรรณาธิการ</div>
                     </div>
                   </div>
@@ -241,6 +274,14 @@ export default async function PostPage({ params }) {
                   {post.author.description && (
                     <p className="mt-2 text-sm text-ink-muted">{post.author.description}</p>
                   )}
+                  {post.author.slug && (
+                    <Link
+                      href={`/author/${post.author.slug}`}
+                      className="mt-3 inline-block text-sm font-semibold text-brand hover:underline"
+                    >
+                      บทความทั้งหมดโดย {post.author.name} →
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -252,7 +293,7 @@ export default async function PostPage({ params }) {
                 <p className="mt-0.5 text-xs text-white/60">ช่วยกระจายข่าวเชิงลึกให้คนมากขึ้น</p>
               </div>
               <ShareButtons
-                url={`${SITE_URL}/post/${post.slug}`}
+                url={articleUrl}
                 title={post.title}
                 platforms={["x", "facebook", "line", "telegram", "whatsapp"]}
                 variant="solid"

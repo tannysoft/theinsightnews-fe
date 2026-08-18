@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import parse from "html-react-parser";
 import { getPost, getPosts, formatDate, stripHtml, pickImage, resolveOldSlug } from "@/lib/api";
 import { NewsCard, RowCard } from "@/components/NewsCard";
@@ -50,9 +50,11 @@ export default async function PostPage({ params }) {
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) {
-    // Before 404-ing, check WP for an old-slug → new-slug mapping.
+    // Before 404-ing, check WP for an old-slug → new-slug mapping. Permanent,
+    // not temporary: the old URL is retired for good, and a 307 would keep
+    // search engines crediting the dead slug instead of the live one.
     const newSlug = await resolveOldSlug(slug);
-    if (newSlug) redirect(`/${newSlug}`);
+    if (newSlug) permanentRedirect(`/${newSlug}`);
     notFound();
   }
 

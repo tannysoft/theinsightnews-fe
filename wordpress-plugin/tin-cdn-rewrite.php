@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Headless Helpers
  * Description: Six helpers for running WordPress headless behind a separate frontend — (1) optionally rewrites /wp-content/uploads/* URLs to a dedicated CDN host, (2) fires on-demand ISR revalidation on the frontend when a post is saved + exposes a manual "Clear cache" button in the editor, (3) makes admin "View Post" links point to the frontend while keeping REST / admin / login URLs on the origin, (4) ensures logged-in users with admin access actually land in wp-admin after login (fixes headless redirect-to-frontend bug), (5) 301-redirects public page views to the configured frontend host, leaving wp-admin / wp-json / login / uploads untouched, (6) exposes GET /wp-json/tin/v1/posts — the same query surface as /wp/v2/posts but with the featured image, author, terms and reading time inlined, so clients never need the heavyweight `_embed`. Site-agnostic — drop it into any WP install and configure via Settings → Headless.
- * Version: 1.9.0
+ * Version: 1.10.0
  * License: GPL-2.0+
  *
  * How to install:
@@ -974,6 +974,14 @@ add_action('rest_api_init', function () {
         'permission_callback' => '__return_true',
     ]);
 
+    // Old slug -> current slug. Registered before the catch-all below so
+    // `/posts/resolve-slug` can't swallow it.
+    register_rest_route(TIN_REST_NS, '/resolve-slug', [
+        'methods'             => WP_REST_Server::READABLE,
+        'callback'            => 'tin_rest_resolve_slug',
+        'permission_callback' => '__return_true',
+    ]);
+
     // Single post by slug. Slugs may be percent-encoded Thai, so match
     // anything that isn't a path separator.
     register_rest_route(TIN_REST_NS, '/posts/(?P<slug>[^/]+)', [
@@ -1325,21 +1333,83 @@ function tin_rest_get_posts($request) {
 }
 
 /**
+ * The forms a slug may take on the way in.
+ *
+ * Non-ASCII slugs are stored percent-encoded in `post_name`, and depending on
+ * the server a slug reaches us encoded or decoded. `sanitize_title()` on the
+ * decoded value re-encodes it the same way WordPress did when it saved the
+ * post, so comparing against all three forms covers every route.
+ */
+function tin_rest_slug_candidates($raw) {
+    $raw = (string) $raw;
+    if (trim($raw) === '') {
+        return [];
+    }
+    return array_values(array_unique(array_filter([
+        sanitize_title(urldecode($raw)),
+        sanitize_title($raw),
+        $raw,
+    ])));
+}
+
+/**
+ * GET /tin/v1/resolve-slug?slug=<old-slug>
+ *
+ * Rename a post in WordPress and it keeps the previous slug in the
+ * `_wp_old_slug` post meta, so that `wp_old_slug_redirect()` can 301 old
+ * links to the new permalink. Headless, that hook never gets the chance:
+ * this plugin's own frontend redirect (section 5) fires on `init` and sends
+ * the request to the public site long before WordPress resolves the query.
+ * So the frontend can't piggyback on WP's redirect — it has to ask.
+ *
+ * Returns the current slug for a retired one, or 404 when the slug was never
+ * used. Published posts only, and never a post whose current slug is the one
+ * being asked about, which would send the caller round in a loop.
+ */
+function tin_rest_resolve_slug($request) {
+    global $wpdb;
+
+    $candidates = tin_rest_slug_candidates($request->get_param('slug'));
+    if (!$candidates) {
+        return new WP_Error('tin_bad_slug', 'Missing slug', ['status' => 400]);
+    }
+
+    // Same lookup core's wp_old_slug_redirect() does. LIMIT because a slug
+    // can be recycled across posts; the newest post wins, as in core.
+    $placeholders = implode(',', array_fill(0, count($candidates), '%s'));
+    $post_ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT post_id FROM {$wpdb->postmeta}
+          WHERE meta_key = '_wp_old_slug' AND meta_value IN ($placeholders)
+          ORDER BY post_id DESC
+          LIMIT 10",
+        $candidates
+    ));
+
+    foreach ($post_ids as $post_id) {
+        $post = get_post((int) $post_id);
+        if (!$post || $post->post_type !== 'post' || $post->post_status !== 'publish') {
+            continue;
+        }
+        if (in_array($post->post_name, $candidates, true)) {
+            continue; // Already the current slug — nothing to redirect to.
+        }
+        return new WP_REST_Response([
+            'id'   => (int) $post->ID,
+            'slug' => $post->post_name,
+        ], 200);
+    }
+
+    return new WP_Error('tin_not_found', 'No post has used that slug', ['status' => 404]);
+}
+
+/**
  * GET /tin/v1/posts/<slug>
  *
  * Defaults to `context=view` — asking for one post by slug means you want the
  * article.
  */
 function tin_rest_get_post($request) {
-    $raw = (string) $request['slug'];
-    // Non-ASCII slugs are stored percent-encoded in post_name. Depending on
-    // the server the route segment may reach us encoded or decoded, so try
-    // both forms.
-    $candidates = array_values(array_unique(array_filter([
-        sanitize_title(urldecode($raw)),
-        sanitize_title($raw),
-        $raw,
-    ])));
+    $candidates = tin_rest_slug_candidates($request['slug']);
     if (!$candidates) {
         return new WP_Error('tin_bad_slug', 'Missing slug', ['status' => 400]);
     }

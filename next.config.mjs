@@ -22,6 +22,20 @@ const nextConfig = {
         // whole login chain answers with the status WordPress used here.
         statusCode: 301,
       },
+      // The admin lives on the CMS origin, never here. Links to it leak into
+      // the wild anyway — old bookmarks, scrapers, bots probing every WP site
+      // for a login form. Send them to the home page instead of a 404. The
+      // catch-all covers deep links like /wp-admin/post.php?post=1.
+      {
+        source: "/wp-admin",
+        destination: "/",
+        statusCode: 301,
+      },
+      {
+        source: "/wp-admin/:path*",
+        destination: "/",
+        statusCode: 301,
+      },
     ];
   },
   // Sub-sitemaps keep Rank Math's public URL shape — `/page-sitemap.xml` for

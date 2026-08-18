@@ -9,6 +9,19 @@ const nextConfig = {
         destination: "/:slug",
         permanent: true,
       },
+      // WordPress' login entry point, as it appears on the *public* host:
+      // WP builds those links from home_url(), and the CMS 301s wp-login.php
+      // to its renamed /wp-backoffice. Handled here rather than being left to
+      // app/[slug]'s old-slug resolver, which reached the same place only by
+      // asking the CMS on every hit — and dropped the query string doing it,
+      // losing the `redirect_to` that says where the visitor was going.
+      {
+        source: "/wp-login.php",
+        destination: "/wp-backoffice",
+        // 301 rather than Next's `permanent: true` (which emits 308), so the
+        // whole login chain answers with the status WordPress used here.
+        statusCode: 301,
+      },
     ];
   },
   // Sub-sitemaps keep Rank Math's public URL shape — `/page-sitemap.xml` for

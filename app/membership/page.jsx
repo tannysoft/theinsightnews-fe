@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { pageMetadata } from "@/lib/site";
 
-export const metadata = {
+export const metadata = pageMetadata({
+  path: "/membership",
   title: "Membership — เร็วๆ นี้",
   description: "ระบบสมาชิก Premium Analysis และการสนับสนุนกำลังจะเปิดเร็วๆ นี้",
-};
+});
 
 export default function Membership() {
   return (

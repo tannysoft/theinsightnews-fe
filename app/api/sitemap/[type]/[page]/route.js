@@ -1,5 +1,5 @@
-import { buildUrlset, XML_RESPONSE_HEADERS } from "@/lib/sitemap-xml";
-import { getSitemapEntries, isSitemapType } from "@/lib/sitemap-sources";
+import { buildUrlset, buildNewsUrlset, XML_RESPONSE_HEADERS } from "@/lib/sitemap-xml";
+import { getSitemapEntries, getNewsSitemapEntries, isSitemapType } from "@/lib/sitemap-sources";
 
 /**
  * Paginated sub-sitemaps.
@@ -14,6 +14,13 @@ export const revalidate = 1800; // 30 min
 
 export async function GET(_request, { params }) {
   const { type, page } = await params;
+
+  // `/news-sitemap.xml` arrives through the same rewrite. Unlike the others
+  // it's served even when empty: a quiet two days is normal, not an error.
+  if (type === "news" && page === "1") {
+    const entries = await getNewsSitemapEntries();
+    return new Response(buildNewsUrlset(entries), { headers: XML_RESPONSE_HEADERS });
+  }
 
   if (!isSitemapType(type)) {
     return new Response("Not found", { status: 404 });

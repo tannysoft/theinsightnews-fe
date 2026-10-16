@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { SITE, absUrl } from "@/lib/site";
+import { SITE, pageMetadata } from "@/lib/site";
 
-export const metadata = {
+export const metadata = pageMetadata({
+  path: "/privacy",
   title: "นโยบายความเป็นส่วนตัว",
   description:
     "นโยบายความเป็นส่วนตัวของ The Insight News — เราเก็บรวบรวม ใช้ และปกป้องข้อมูลของคุณอย่างไร",
-  alternates: { canonical: absUrl("/privacy") },
-};
+});
 
 const LAST_UPDATED = "1 เมษายน 2569";
 

@@ -3,8 +3,12 @@ import { getPosts, SECTION_MAP, formatDate, getPopularTags, decodeHtml, pickImag
 import { NewsCard, RowCard, MagCard } from "@/components/NewsCard";
 import HeroSlider from "@/components/HeroSlider";
 import SectionHeader from "@/components/SectionHeader";
+import { pageMetadata } from "@/lib/site";
 
 export const revalidate = 300;
+
+// Title comes from the layout's default; the canonical has to be set here.
+export const metadata = pageMetadata({ path: "/" });
 
 export default async function HomePage() {
   const [latestRes, analysisRes, reportsRes, opinionRes, trendingRes, popularTags] = await Promise.all([

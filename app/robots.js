@@ -17,7 +17,7 @@ export default function robots() {
         disallow: ["/search", "/search?*", "/api/"],
       },
     ],
-    sitemap: `${SITE.url}/sitemap_index.xml`,
+    sitemap: [`${SITE.url}/sitemap_index.xml`, `${SITE.url}/news-sitemap.xml`],
     host: SITE.url,
   };
 }

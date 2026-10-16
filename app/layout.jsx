@@ -4,7 +4,7 @@ import Footer from "@/components/Footer";
 import BreakingTicker from "@/components/BreakingTicker";
 import CookieNotice from "@/components/CookieNotice";
 import Analytics from "@/components/Analytics";
-import { SITE, absUrl, safeJsonLd } from "@/lib/site";
+import { SITE, SITE_FEEDS, absUrl, safeJsonLd } from "@/lib/site";
 
 export const metadata = {
   metadataBase: new URL(SITE.url),
@@ -28,17 +28,10 @@ export const metadata = {
   referrer: "origin-when-cross-origin",
   creator: SITE.name,
   publisher: SITE.name,
-  alternates: {
-    canonical: SITE.url,
-    types: {
-      "application/rss+xml": [
-        { url: absUrl("/feed"), title: `${SITE.name} » Feed` },
-      ],
-      "application/atom+xml": [
-        { url: absUrl("/feed/atom"), title: `${SITE.name} » Atom Feed` },
-      ],
-    },
-  },
+  // No canonical here: every page inherits the layout's, so one set here
+  // declares every page that forgets its own a duplicate of the home page.
+  // Pages set it themselves — via pageMetadata() or yoastToMetadata().
+  alternates: { types: SITE_FEEDS },
   robots: {
     index: true,
     follow: true,
@@ -55,7 +48,6 @@ export const metadata = {
     siteName: SITE.name,
     title: SITE.name,
     description: SITE.tagline,
-    url: SITE.url,
     locale: SITE.locale,
     images: [{ url: absUrl(SITE.defaultOgImage), width: 1200, height: 630, alt: SITE.name }],
   },

@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { pageMetadata } from "@/lib/site";
 
-export const metadata = {
+export const metadata = pageMetadata({
+  path: "/about",
   title: "About Us — รู้จัก The Insight News",
   description: "สำนักข่าวเชิงลึกที่ยึดมั่นในความจริง เพื่อประโยชน์สูงสุดของสังคม",
-};
+});
 
 const PRINCIPLES = [
   { n: "01", t: "Truth Above All", d: "เราตรวจสอบข้อมูลจากหลายแหล่ง ยึดข้อเท็จจริงและความถูกต้องเป็นที่ตั้งในทุกรายงาน" },

@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import { preload } from "react-dom";
 import parse from "html-react-parser";
-import { getPost, getPosts, formatDate, stripHtml, pickImage, resolveOldSlug } from "@/lib/api";
+import { getPost, getPosts, formatDate, stripHtml, pickImage, imageSrcSet, resolveOldSlug } from "@/lib/api";
 import { NewsCard, RowCard } from "@/components/NewsCard";
 import ShareButtons from "@/components/ShareButtons";
 import ArticleEnhancer from "@/components/ArticleEnhancer";
@@ -147,17 +147,28 @@ export default async function PostPage({ params }) {
           {(() => {
             const heroImg = pickImage(post, "full");
             if (!heroImg) return null;
+            // A plain <img> with WP's renditions as srcset — next/image can
+            // only offer one URL while images are unoptimized. Preloaded with
+            // the same srcset so the LCP fetch starts before the CSS lands.
+            const srcSet = imageSrcSet(post);
+            preload(heroImg, {
+              as: "image",
+              fetchPriority: "high",
+              ...(srcSet ? { imageSrcSet: srcSet, imageSizes: "100vw" } : {}),
+            });
             return (
-              <Image
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
                 src={heroImg}
+                srcSet={srcSet || undefined}
+                sizes={srcSet ? "100vw" : undefined}
                 alt={post.featuredAlt || post.title}
-                fill
-                sizes="100vw"
-                priority
+                fetchPriority="high"
+                decoding="async"
                 // Anchored near the top, not centred: the hero crops a
                 // 16:9 image into a tall viewport, and centring cuts the
                 // heads off the people the photo is about.
-                className="absolute inset-0 object-cover object-[50%_20%]"
+                className="absolute inset-0 h-full w-full object-cover object-[50%_20%]"
               />
             );
           })()}

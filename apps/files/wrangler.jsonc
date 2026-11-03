@@ -1,12 +1,12 @@
-// files.theinsightnews.co — images from R2, falling back to WordPress
-// (and copying into R2) for files uploaded there before cutover.
-{
+// Not in use since 2026-11-03: files.theinsightnews.co is now an R2 custom
+// domain on the theinsightnews-media bucket. Kept, without a route, to roll
+// back to: add the route below and remove the bucket's custom domain.
+// {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "theinsightnews-files",
   "main": "src/index.js",
   "compatibility_date": "2026-11-01",
   "workers_dev": false,
-  "routes": [{ "pattern": "files.theinsightnews.co/*", "zone_name": "theinsightnews.co" }],
   "r2_buckets": [{ "binding": "R2", "bucket_name": "theinsightnews-media" }],
   // WordPress, for files not yet in R2. Empty since the CMS cutover (2026-11-03): missing files are 404.
   "vars": { "ORIGIN": "" },

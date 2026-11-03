@@ -6,7 +6,7 @@ Monorepo ของเว็บไซต์และระบบจัดกา�
 | --- | --- | --- |
 | `apps/web` | เว็บไซต์ข่าว (Next.js 16) | Cloudflare Workers ผ่าน OpenNext |
 | `apps/cms` | Payload CMS 3 ระบบหลังบ้านที่มาแทน WordPress | Cloudflare Workers + D1 (ฐานข้อมูล) + R2 (ไฟล์สื่อ) |
-| `apps/files` | files.theinsightnews.co — ส่งไฟล์สื่อจาก R2 | Cloudflare Worker (route บนโซน) |
+| `apps/files` | worker สำรอง (ไม่ได้ใช้แล้ว) — files.theinsightnews.co เป็น custom domain ของ R2 โดยตรง | Cloudflare Worker (ไม่มี route) |
 
 ```
 packages/
@@ -26,7 +26,7 @@ apps/
 | --- | --- | --- |
 | เว็บ | www.theinsightnews.co (worker `theinsightnews-fe`) | new.theinsightnews.co (worker `theinsightnews-web`, noindex) |
 | หลังบ้าน | cms.theinsightnews.co (WordPress) | `theinsightnews-cms.<account>.workers.dev/admin` |
-| ไฟล์สื่อ | files.theinsightnews.co (worker `theinsightnews-files`: R2 ก่อน ไม่มีค่อยดึงจาก WordPress แล้วเก็บลง R2) | ใช้ร่วมกัน |
+| ไฟล์สื่อ | files.theinsightnews.co (custom domain ของ R2 bucket `theinsightnews-media` อ่านตรงจาก R2) | ใช้ร่วมกัน |
 
 ## เริ่มต้นพัฒนา
 
@@ -88,7 +88,7 @@ pnpm --filter @theinsightnews/cms migrate:db
   - รูปเดิมที่ย้ายมา: `pnpm migrate:wp --steps=sizes` (ย่อด้วย sharp บนเครื่อง)
 - เว็บเรียกไฟล์จาก files.theinsightnews.co ตรง ๆ ไม่ผ่าน Next Image รูปในเนื้อหาใช้ `<picture>` (WebP + ไฟล์ต้นฉบับเป็น fallback) ระหว่างที่รูปย่อยังไม่ครบ เว็บใช้ไฟล์ต้นฉบับ (`sizesReady`)
 - ไฟล์ต้นฉบับและรูปย่อที่ WordPress สร้างไว้ (`-300x169.jpg` ฯลฯ) ถูกคัดลอกเข้า R2 ด้วย เพราะเว็บ WordPress เดิมยังลิงก์ถึง
-- files.theinsightnews.co (`apps/files`) อ่านจาก R2 ถ้ายังไม่มี (รูปที่เพิ่งอัปใน WordPress) จะดึงจาก WordPress แล้วคัดลอกลง R2 ให้ header `x-files-source` บอกว่ามาจาก `r2` / `cache` / `wordpress` · deploy: `cd apps/files && npx wrangler deploy`
+- files.theinsightnews.co เป็น custom domain ของ R2 bucket `theinsightnews-media` (ตั้งแต่ 2026-11-03) รูปอ่านตรงจาก R2 ไม่ผ่าน worker · `apps/files` เป็น worker เดิมที่เก็บไว้เผื่อย้อนกลับ (ไม่มี route)
 - รูปในเนื้อหาที่ลิงก์ไปเว็บที่ปิดแล้ว (เช่น songsue.co): หน้า **กู้รูปที่หายไป** ใน admin (`/admin/image-recovery`) ให้บรรณาธิการเทียบสำเนาจาก Wayback แล้วกดใช้ (เข้าคลังสื่อ + แก้ข่าว) หรือลบรูปเสียออก รายการสร้างด้วย `apps/cms/scripts/recover-images/`
 
 ## ส่งข่าวเข้ามาเป็นฉบับร่าง (API)
@@ -200,7 +200,7 @@ Workers Builds ของ `theinsightnews-fe` (branch main) ต้องตั้
 1. งดแก้ไขใน WordPress
 2. `PAYLOAD_REMOTE=1 pnpm migrate:wp --since=<วันที่ย้ายรอบแรก>` แล้ว `--steps=files` และ `--steps=sizes`
 3. `apps/web/wrangler.jsonc`: เปลี่ยน `routes` เป็น www / apex แล้วลบ `SITE_NOINDEX`; `apps/cms/wrangler.jsonc`: เพิ่ม route `cms.theinsightnews.co`, ตั้ง `CMS_URL` / `WEB_URL` เป็นโดเมนจริง (และ `CMS_URL` ของเว็บ) แล้ว deploy ทั้งสองแอป
-4. `apps/files/wrangler.jsonc`: ถ้า WordPress ไม่อยู่ที่ cms.theinsightnews.co แล้ว ให้เปลี่ยน `ORIGIN` หรือเลิก fallback (รูปทั้งหมดอยู่ใน R2 แล้ว)
+4. files.theinsightnews.co ย้ายเป็น custom domain ของ R2 แล้ว (ทำแล้ว 2026-11-03) ตั้ง Cache Rule ให้ host นี้ cache 1 ปี
 5. ส่ง sitemap ใน Search Console
 
 ย้อนกลับ: ตั้ง `CMS_SOURCE=wordpress` ใน `apps/web/wrangler.jsonc` แล้ว deploy เว็บ

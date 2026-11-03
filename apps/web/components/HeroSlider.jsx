@@ -70,7 +70,9 @@ export default function HeroSlider({ posts = [] }) {
               />
             )}
             <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 p-5 pb-14 md:p-8 md:pb-16">
+            {/* The whole card opens the story; the title link below is the accessible one. */}
+            <Link href={`/${post.slug}`} aria-hidden="true" tabIndex={-1} className="absolute inset-0 z-10" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-5 pb-14 md:p-8 md:pb-16">
               <div className="flex items-center gap-3">
                 <span className="rounded-sm bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em]">
                   {i === 0 ? "Top Story" : "Featured"}
@@ -78,7 +80,7 @@ export default function HeroSlider({ posts = [] }) {
                 {post.categories?.[0] && (
                   <Link
                     href={`/category/${post.categories[0].slug}`}
-                    className="relative z-20 text-[11px] font-bold uppercase tracking-[0.18em] text-white/90 hover:text-brand-400"
+                    className="pointer-events-auto text-[11px] font-bold uppercase tracking-[0.18em] text-white/90 hover:text-brand-400"
                   >
                     {post.categories[0].name}
                   </Link>
@@ -87,12 +89,12 @@ export default function HeroSlider({ posts = [] }) {
               <h2 className="headline mt-3 max-w-3xl text-xl leading-[1.6] text-white line-clamp-2 md:text-3xl md:leading-[1.5] lg:text-[36px] lg:leading-[1.4]">
                 <Link
                   href={`/${post.slug}`}
-                  className="after:absolute after:inset-0 after:content-[''] hover:text-white/95"
+                  className="pointer-events-auto hover:text-white/95"
                 >
                   {post.title}
                 </Link>
               </h2>
-              <div className="relative z-20 mt-3 flex items-center gap-3 text-xs text-white/80">
+              <div className="mt-3 flex items-center gap-3 text-xs text-white/80">
                 <span>{post.author?.name}</span>
                 <span className="opacity-60">·</span>
                 <time>{relativeTime(post.date)}</time>
@@ -129,9 +131,9 @@ export default function HeroSlider({ posts = [] }) {
           </div>
 
           {/* Bottom bar: dots + counter + progress */}
-          <div className="absolute inset-x-0 bottom-0 z-30">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
             <div className="flex items-center justify-between gap-4 px-5 py-3 md:px-8 md:py-4">
-              <div className="flex items-center gap-1.5">
+              <div className="pointer-events-auto flex items-center gap-1.5">
                 {slides.map((_, i) => (
                   <button
                     key={i}

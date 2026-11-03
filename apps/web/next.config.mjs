@@ -63,6 +63,12 @@ const nextConfig = {
       // the wild anyway — old bookmarks, scrapers, bots probing every WP site
       // for a login form. Send them to the home page instead of a 404. The
       // catch-all covers deep links like /wp-admin/post.php?post=1.
+      // WordPress served uploads from this host; they now live on the media host.
+      {
+        source: "/wp-content/uploads/:path*",
+        destination: `${(process.env.MEDIA_URL || "https://files.theinsightnews.co").replace(/\/+$/, "")}/wp-content/uploads/:path*`,
+        statusCode: 301,
+      },
       {
         source: "/wp-admin",
         destination: "/",

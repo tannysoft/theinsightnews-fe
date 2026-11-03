@@ -8,8 +8,9 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  // Served on workers.dev while cms.theinsightnews.co is still WordPress.
-  "workers_dev": true,
+  // Only cms.theinsightnews.co: no workers.dev or preview URLs.
+  "workers_dev": false,
+  "preview_urls": false,
   "observability": { "enabled": true },
   "d1_databases": [
     {
@@ -31,10 +32,9 @@
   // Resizes uploads into the sizes the website uses (hooks/image-sizes.ts)
   "images": { "binding": "IMAGES" },
   // cms.theinsightnews.co since the cutover (was WordPress); workers.dev stays on as a backup way in.
-  // TEMP until the WordPress DNS record for cms.theinsightnews.co is removed:
-  // "routes": [{ "pattern": "cms.theinsightnews.co", "custom_domain": true }],
+  "routes": [{ "pattern": "cms.theinsightnews.co", "custom_domain": true }],
   "vars": {
-    "CMS_URL": "https://theinsightnews-cms.tannysoft.workers.dev",
+    "CMS_URL": "https://cms.theinsightnews.co",
     "WEB_URL": "https://www.theinsightnews.co",
     "MEDIA_URL": "https://files.theinsightnews.co"
   },

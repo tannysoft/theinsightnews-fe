@@ -21,7 +21,7 @@
   "vars": {
     // "payload" reads the new CMS; "wordpress" the old one (rollback switch).
     "CMS_SOURCE": "payload",
-    "CMS_URL": "https://theinsightnews-cms.tannysoft.workers.dev",
+    "CMS_URL": "https://cms.theinsightnews.co",
     "MEDIA_URL": "https://files.theinsightnews.co"
   },
   // Secrets (wrangler secret put …): REVALIDATE_SECRET and PREVIEW_SECRET (same

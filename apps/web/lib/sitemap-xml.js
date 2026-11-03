@@ -8,9 +8,7 @@
 //   - No <changefreq> / <priority> anywhere. Google ignores both.
 //   - Every image a post references, as bare <image:loc> — no <image:title>,
 //     which Google stopped reading in 2022.
-//   - The XML declaration and the stylesheet PI share the first line. Rank
-//     Math writes that href protocol-relative but absolute; we keep it
-//     root-relative instead — see stylesheetHref().
+//   - Unlike Rank Math, no XSL stylesheet (Chrome is removing XSLT).
 //   - urlset carries the xhtml/xsi/image namespaces plus xsi:schemaLocation.
 //   - Tab-indented, served as text/xml with X-Robots-Tag: noindex.
 import { SITE } from "@/lib/site";
@@ -18,9 +16,6 @@ import { parseWpDate } from "@/lib/api";
 
 export const SITEMAP_CACHE_SECONDS = 1800; // 30 minutes
 export const SITEMAP_LINKS_PER_PAGE = 200; // Rank Math's default page size
-
-/** Stylesheet that renders a sitemap as a table in the browser. */
-export const SITEMAP_XSL_PATH = "/main-sitemap.xsl";
 
 function xmlEscape(s) {
   return String(s ?? "")
@@ -53,27 +48,9 @@ export function sitemapUrl(type, page = 1, totalPages = 1) {
   return `${SITE.url}${sitemapPath(type, page, totalPages)}`;
 }
 
-/**
- * Root-relative, deliberately — this is the one place we don't copy Rank
- * Math, which writes `//host/main-sitemap.xsl`.
- *
- * Browsers refuse to apply an XSL stylesheet from another origin, and they
- * fail silently: no error page, no raw XML, just a blank white document. An
- * absolute href pins the stylesheet to the production host, so the sitemap
- * renders blank everywhere else — localhost, a workers.dev preview, any
- * staging domain. WordPress never notices because it only ever serves one
- * host. A relative href resolves against whatever origin is serving the
- * sitemap, which is always the origin that also serves the stylesheet.
- */
-function stylesheetHref() {
-  return SITEMAP_XSL_PATH;
-}
-
 function xmlHeader() {
-  return (
-    `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<?xml-stylesheet type="text/xsl" href="${stylesheetHref()}"?>\n`
-  );
+  // No XSL stylesheet: Chrome is dropping XSLT, and crawlers never used it.
+  return `<?xml version="1.0" encoding="UTF-8"?>\n`;
 }
 
 const URLSET_ATTRS = [
@@ -111,8 +88,7 @@ ${body}
 
 /**
  * Google News sitemap — the articles published in the last two days, which
- * is all Google News reads from one. No stylesheet PI: the XSL only knows
- * the plain urlset shape.
+ * is all Google News reads from one.
  *
  * @param {{ loc: string, title: string, published: string|Date }[]} entries
  */

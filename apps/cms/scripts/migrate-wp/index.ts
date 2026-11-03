@@ -90,6 +90,15 @@ async function existingIds(payload: Payload, collection: 'users' | 'categories' 
   }
 }
 
+/** First line of an error plus its causes (database errors hide the reason in `cause`). */
+function errorText(err: unknown): string {
+  const parts: string[] = []
+  for (let e = err as { message?: string; cause?: unknown } | undefined; e && parts.length < 4; e = e.cause as typeof e) {
+    if (e.message) parts.push(e.message.split('\n')[0].replace(/^Failed query: (insert|update|select)[^]*?(returning|where)[^]*$/i, 'Failed query'))
+  }
+  return parts.join(' ← ')
+}
+
 // ---------- steps ----------
 /**
  * Accounts arrive without a password (WordPress hashes can't be carried
@@ -222,7 +231,7 @@ async function migrateMedia(payload: Payload, wp: WordPress) {
         await payload.db.create({ collection: 'media', data: mediaData(m) })
         n++
       } catch (err) {
-        log(`media ${m.id} skipped: ${(err as Error).message.split('\n')[0]}`)
+        log(`media ${m.id} skipped: ${errorText(err)}`)
       }
     }
     if (trackPages) {
@@ -406,7 +415,7 @@ async function migrateContent(
       }
     } catch (err) {
       failed++
-      const msg = (err as Error).message.split('\n')[0]
+      const msg = errorText(err)
       report.write(`${p.id}\tFAILED\t${msg}\n`)
       log(`${kind} ${p.id} failed: ${msg}`)
     }

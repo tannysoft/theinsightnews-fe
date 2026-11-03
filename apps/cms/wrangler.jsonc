@@ -30,14 +30,15 @@
   "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["no-reply@notify.theinsightnews.co"] }],
   // Resizes uploads into the sizes the website uses (hooks/image-sizes.ts)
   "images": { "binding": "IMAGES" },
+  // cms.theinsightnews.co since the cutover (was WordPress); workers.dev stays on as a backup way in.
+  // TEMP until the WordPress DNS record for cms.theinsightnews.co is removed:
+  // "routes": [{ "pattern": "cms.theinsightnews.co", "custom_domain": true }],
   "vars": {
-    // The workers.dev URL of this worker (printed by the first deploy).
     "CMS_URL": "https://theinsightnews-cms.tannysoft.workers.dev",
-    "WEB_URL": "https://new.theinsightnews.co",
+    "WEB_URL": "https://www.theinsightnews.co",
     "MEDIA_URL": "https://files.theinsightnews.co"
   },
   // Secrets (wrangler secret put …): PAYLOAD_SECRET, REVALIDATE_SECRET, PREVIEW_SECRET
-  // Cutover: "routes": [{ "pattern": "cms.theinsightnews.co", "custom_domain": true }] + CMS_URL / WEB_URL
 
   // Used by scripts and `payload migrate` on your machine to reach the real
   // D1/R2 (PAYLOAD_REMOTE=1, or NODE_ENV=production for the payload CLI).

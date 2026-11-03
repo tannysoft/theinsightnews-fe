@@ -1,9 +1,10 @@
 /**
  * files.theinsightnews.co: serves /wp-content/uploads/* from R2.
  *
- * Until cutover, editors still upload to WordPress, so a file missing from
- * R2 is fetched from WordPress (env.ORIGIN), returned, and copied into R2.
- * Anything outside /wp-content/uploads/ is passed through to WordPress.
+ * Before the cutover, editors still uploaded to WordPress, so a file missing
+ * from R2 was fetched from WordPress (env.ORIGIN), returned, and copied into
+ * R2. With ORIGIN empty (after the cutover) a missing file is a 404 and
+ * nothing is proxied.
  */
 const UPLOADS = '/wp-content/uploads/'
 const YEAR = 'public, max-age=31536000, immutable'
@@ -17,7 +18,10 @@ export default {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response('Method not allowed', { status: 405, headers: { allow: 'GET, HEAD' } })
     }
-    if (!url.pathname.startsWith(UPLOADS)) return fetch(new Request(env.ORIGIN + url.pathname + url.search, request))
+    if (!url.pathname.startsWith(UPLOADS)) {
+      if (!env.ORIGIN) return new Response('Not found', { status: 404 })
+      return fetch(new Request(env.ORIGIN + url.pathname + url.search, request))
+    }
 
     // Own cache key, separate from what the zone cached when this host proxied
     // WordPress. match() answers Range and If-None-Match itself.
@@ -40,6 +44,8 @@ export default {
 
     const obj = await getObject(env.R2, key, request)
     if (obj) return fromR2(obj, request, plain, cacheKey, ctx)
+
+    if (!env.ORIGIN) return new Response('Not found', { status: 404, headers: { 'cache-control': 'public, max-age=300' } })
 
     // Not in R2 yet: ask WordPress.
     const origin = await fetch(env.ORIGIN + url.pathname, { cf: { cacheTtl: 0 } })

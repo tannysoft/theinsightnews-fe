@@ -1,9 +1,9 @@
 /**
- * The new site (reads Payload CMS), deployed as its own worker so the live
- * www.theinsightnews.co worker (theinsightnews-fe, reading WordPress) is
- * untouched until the cutover.
+ * www.theinsightnews.co — the website, reading Payload CMS. Live since the
+ * cutover on 2026-11-03; the old WordPress-reading worker (theinsightnews-fe,
+ * wrangler.live.jsonc) no longer serves traffic.
  *
- * Cutover: swap `routes` for the live domains, drop SITE_NOINDEX.
+ * theinsightnews.co (apex) redirects to www with a zone rule.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -17,16 +17,10 @@
   },
   "workers_dev": true,
   "observability": { "enabled": true },
-  // Preview of the new site (noindex).
-  "routes": [{ "pattern": "new.theinsightnews.co", "custom_domain": true }],
-  // "routes": [
-  //   { "pattern": "www.theinsightnews.co", "custom_domain": true },
-  //   { "pattern": "theinsightnews.co", "custom_domain": true }
-  // ],
+  "routes": [{ "pattern": "www.theinsightnews.co", "custom_domain": true }],
   "vars": {
     // "payload" reads the new CMS; "wordpress" the old one (rollback switch).
     "CMS_SOURCE": "payload",
-    "SITE_NOINDEX": "1",
     "CMS_URL": "https://theinsightnews-cms.tannysoft.workers.dev",
     "MEDIA_URL": "https://files.theinsightnews.co"
   },

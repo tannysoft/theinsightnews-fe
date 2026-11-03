@@ -1,0 +1,59 @@
+/* Body text in Google Sans; headings and the CMS menu in Noto Sans Thai. */
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --font-body: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* The rich-text editor and version diffs default to Georgia. */
+  --font-serif: var(--font-body);
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.nav,
+.nav *,
+.app-header,
+.app-header *,
+.list-title-link,
+#field-title {
+  font-family: var(--font-heading);
+}
+
+/* 400 reads thin in the admin's small sizes. */
+body {
+  font-weight: 500;
+}
+h1,
+h2,
+h3,
+h4,
+strong,
+b {
+  font-weight: 700;
+}
+
+/* Posts list: title and cover link to the story, underline only on hover. */
+.list-title-link,
+.list-cover-link {
+  color: inherit;
+  font-weight: 500;
+  text-decoration: none;
+}
+.list-title-link:hover,
+.list-title-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

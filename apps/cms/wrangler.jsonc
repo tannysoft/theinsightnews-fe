@@ -1,0 +1,63 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "theinsightnews-cms",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Served on workers.dev while cms.theinsightnews.co is still WordPress.
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "D1",
+      "database_name": "theinsightnews-cms",
+      "database_id": "1f29d22a-b3c2-4753-a8ec-38cd3e57fd82"
+    }
+  ],
+  // Media library: files.theinsightnews.co, keys wp-content/uploads/{yyyy}/{mm}/{file}
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "theinsightnews-media"
+    }
+  ],
+  // Forgot-password mail (lib/email.ts). Domain onboarded with
+  // `wrangler email sending enable notify.theinsightnews.co`.
+  "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["no-reply@notify.theinsightnews.co"] }],
+  // Resizes uploads into the sizes the website uses (hooks/image-sizes.ts)
+  "images": { "binding": "IMAGES" },
+  "vars": {
+    // The workers.dev URL of this worker (printed by the first deploy).
+    "CMS_URL": "https://theinsightnews-cms.tannysoft.workers.dev",
+    "WEB_URL": "https://new.theinsightnews.co",
+    "MEDIA_URL": "https://files.theinsightnews.co"
+  },
+  // Secrets (wrangler secret put …): PAYLOAD_SECRET, REVALIDATE_SECRET, PREVIEW_SECRET
+  // Cutover: "routes": [{ "pattern": "cms.theinsightnews.co", "custom_domain": true }] + CMS_URL / WEB_URL
+
+  // Used by scripts and `payload migrate` on your machine to reach the real
+  // D1/R2 (PAYLOAD_REMOTE=1, or NODE_ENV=production for the payload CLI).
+  // Keep ids in sync with the top-level bindings.
+  "env": {
+    "remote": {
+      "d1_databases": [
+        {
+          "binding": "D1",
+          "database_name": "theinsightnews-cms",
+          "database_id": "1f29d22a-b3c2-4753-a8ec-38cd3e57fd82",
+          "remote": true
+        }
+      ],
+      "r2_buckets": [{ "binding": "R2", "bucket_name": "theinsightnews-media", "remote": true }]
+    },
+    // Only the real media bucket: `migrate:wp --steps=files` checks/uploads
+    // files there while the database stays local.
+    "files": {
+      "r2_buckets": [{ "binding": "R2", "bucket_name": "theinsightnews-media", "remote": true }]
+    }
+  }
+}

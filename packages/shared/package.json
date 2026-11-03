@@ -1,0 +1,9 @@
+{
+  "name": "@theinsightnews/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./image-sizes": "./src/image-sizes.ts"
+  }
+}

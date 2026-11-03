@@ -1,0 +1,34 @@
+/**
+ * The live site (www.theinsightnews.co) until cutover: worker
+ * `theinsightnews-fe`, reading from WordPress, ISR cache in Workers KV.
+ * Same code as the preview worker in wrangler.jsonc, different settings.
+ *
+ *   pnpm build:live && pnpm deploy:live
+ *
+ * Workers Builds (main branch): root directory `apps/web`,
+ * build command `pnpm build:live`, deploy command `pnpm deploy:live`.
+ *
+ * Secrets set on the worker (not here): REVALIDATE_SECRET,
+ * CLOUDFLARE_ZONE_ID, CLOUDFLARE_PURGE_TOKEN, PURGE_BASE_URL.
+ * The domain is bound in the dashboard (Custom Domains).
+ */
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "theinsightnews-fe",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
+  "observability": { "enabled": true },
+  "vars": {
+    // WordPress stays the source until cutover; "payload" switches to the CMS.
+    "CMS_SOURCE": "wordpress"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "aa5a41147d4b49ce9805ba1ccc9d0a6d",
+      "preview_id": "3ea3f06915554f439f55c86fdb514659"
+    }
+  ]
+}

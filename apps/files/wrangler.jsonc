@@ -1,0 +1,13 @@
+// files.theinsightnews.co — images from R2, falling back to WordPress
+// (and copying into R2) for files uploaded there before cutover.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "theinsightnews-files",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "routes": [{ "pattern": "files.theinsightnews.co/*", "zone_name": "theinsightnews.co" }],
+  "r2_buckets": [{ "binding": "R2", "bucket_name": "theinsightnews-media" }],
+  "vars": { "ORIGIN": "https://cms.theinsightnews.co" },
+  "observability": { "enabled": true }
+}

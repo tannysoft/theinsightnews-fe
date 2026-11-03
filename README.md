@@ -1,196 +1,210 @@
-# The Insight News — Frontend
+# The Insight News (theinsightnews.co)
 
-Headless Next.js (App Router) frontend for `theinsightnews.co`, sitting in front of a WordPress backend on `cms.theinsightnews.co`. Deployed to Cloudflare Workers via `@opennextjs/cloudflare`.
+Monorepo ของเว็บไซต์และระบบจัดการเนื้อหา ทั้งระบบรันบน Cloudflare
 
----
-
-## Architecture
+| แอป | คืออะไร | รันบน |
+| --- | --- | --- |
+| `apps/web` | เว็บไซต์ข่าว (Next.js 16) | Cloudflare Workers ผ่าน OpenNext |
+| `apps/cms` | Payload CMS 3 ระบบหลังบ้านที่มาแทน WordPress | Cloudflare Workers + D1 (ฐานข้อมูล) + R2 (ไฟล์สื่อ) |
+| `apps/files` | files.theinsightnews.co — ส่งไฟล์สื่อจาก R2 | Cloudflare Worker (route บนโซน) |
 
 ```
- ┌──────────────────────────────┐        ┌─────────────────────────────┐
- │  www.theinsightnews.co       │  ISR   │  cms.theinsightnews.co      │
- │  Next.js on Cloudflare       │ ─────▶ │  WordPress (REST API)       │
- │  Workers (this repo)         │        │                             │
- │                              │        │  + tin-cdn-rewrite plugin   │
- │  ISR cache → Workers KV      │        └─────────────────────────────┘
- │  Edge cache → Cloudflare CDN │
- └──────────────────────────────┘        ┌─────────────────────────────┐
-                                         │  files.theinsightnews.co    │
-                                 assets  │  /wp-content/uploads/*      │
-                                  ────▶  │  (Cloudflare origin rule →  │
-                                         │   cms origin)               │
-                                         └─────────────────────────────┘
+packages/
+  shared/  โค้ดที่ CMS และเว็บใช้ร่วมกัน (ขนาดรูปย่อ)
+apps/
+  web/   เว็บไซต์ — อ่านเนื้อหาจาก Payload (หรือ WordPress เดิม) ผ่าน REST API
+    wordpress-plugin/   plugin “Headless Helpers” ของ WordPress เดิม
+  cms/   Payload CMS — /admin สำหรับกองบรรณาธิการ
+    scripts/migrate-wp/       สคริปต์ย้ายข้อมูลจาก WordPress
+    scripts/recover-images/   หาสำเนารูปที่ลิงก์เสียในเนื้อหา (Wayback Machine)
+  files/ Worker ของ files.theinsightnews.co
 ```
 
-Three hosts, one WP install:
-- `www.theinsightnews.co` — public site (served by this Worker)
-- `cms.theinsightnews.co` — WP admin + REST API (`WP_SITEURL`)
-- `files.theinsightnews.co` — CDN subdomain for `/wp-content/uploads/*`
+## ตอนนี้อยู่ตรงไหน
 
----
+| | WordPress เดิม (ใช้งานจริง) | ระบบใหม่ (ทดสอบ) |
+| --- | --- | --- |
+| เว็บ | www.theinsightnews.co (worker `theinsightnews-fe`) | new.theinsightnews.co (worker `theinsightnews-web`, noindex) |
+| หลังบ้าน | cms.theinsightnews.co (WordPress) | `theinsightnews-cms.<account>.workers.dev/admin` |
+| ไฟล์สื่อ | files.theinsightnews.co (worker `theinsightnews-files`: R2 ก่อน ไม่มีค่อยดึงจาก WordPress แล้วเก็บลง R2) | ใช้ร่วมกัน |
 
-## First-time setup
+## เริ่มต้นพัฒนา
 
-### 1. Dependencies
+ต้องใช้ Node 22+ และ pnpm 10
 
 ```bash
 pnpm install
-npx wrangler login
+cp apps/cms/.env.example apps/cms/.env        # ใส่ PAYLOAD_SECRET (openssl rand -hex 32)
+cp apps/web/.env.example apps/web/.env.local  # REVALIDATE_SECRET / PREVIEW_SECRET ให้ตรงกับฝั่ง CMS
+pnpm --filter @theinsightnews/cms migrate:db  # สร้างตารางใน D1 local (.wrangler)
+pnpm dev                                       # web :3000, cms :3001
 ```
 
-### 2. WordPress side
+- หลังบ้าน: http://localhost:3001/admin
+- เว็บ: http://localhost:3000 — ตั้ง `CMS_SOURCE=wordpress` ใน `apps/web/.env.local` เพื่อกลับไปอ่านจาก WordPress เดิมได้ทุกเมื่อ
 
-In `wp-config.php`:
+### แก้ schema ของ CMS
 
-```php
-define('WP_SITEURL', 'https://cms.theinsightnews.co');  // admin + REST
-define('WP_HOME',    'https://www.theinsightnews.co');  // frontend
-```
-
-Install the helper plugin:
-1. Copy [wordpress-plugin/tin-cdn-rewrite.php](wordpress-plugin/tin-cdn-rewrite.php) to `wp-content/plugins/` on the WP server.
-2. WP Admin → Plugins → activate **"The Insight News — Headless Helpers"**.
-3. Settings → Insight Headless → paste the revalidate secret (see step 4 below).
-
-### 3. DNS (Cloudflare dashboard)
-
-| Name   | Type  | Target                       | Proxy    |
-|--------|-------|------------------------------|----------|
-| `cms`  | A/CNAME | WP origin host             | Proxied  |
-| `files`| CNAME | `cms.theinsightnews.co`      | Proxied  |
-
-Then add a **Cloudflare Origin Rule** for `files.theinsightnews.co`:
-- If `hostname = files.theinsightnews.co` → Rewrite Host Header → `cms.theinsightnews.co`
-
-### 4. KV namespace for ISR cache
-
-Create a dedicated namespace (don't share with other sites — keys will collide):
+แก้ไฟล์ใน `apps/cms/src/collections` แล้ว
 
 ```bash
-npx wrangler kv namespace create tin-fe-isr
-npx wrangler kv namespace create tin-fe-isr --preview
+pnpm --filter @theinsightnews/cms generate:types
+pnpm --filter @theinsightnews/cms migrate:create <ชื่อ>
+pnpm --filter @theinsightnews/cms migrate:db
 ```
 
-Paste the returned `id` / `preview_id` into the `kv_namespaces` entry in [wrangler.jsonc](wrangler.jsonc). The `binding` must stay `NEXT_INC_CACHE_KV` (OpenNext looks for this exact name).
+ปิด `push` ไว้ ทุกการเปลี่ยน schema ต้องผ่าน migration เพื่อให้ local และ production ตรงกัน
 
-### 5. Worker secrets
+## เว็บอ่านข้อมูลจาก CMS อย่างไร
 
-Set each secret via `wrangler secret put <NAME>` — you'll be prompted to paste the value.
+หน้าเว็บทั้งหมดเรียกข้อมูลผ่าน `apps/web/lib/api.js` เหมือนเดิม ข้างในมีสวิตช์ `CMS_SOURCE`:
 
-| Secret                      | Required | What it does |
-|-----------------------------|----------|--------------|
-| `REVALIDATE_SECRET`         | **yes**  | Shared secret for `POST /api/revalidate`. Must match the value you paste into the WP plugin settings. Generate with `openssl rand -hex 32`. |
-| `CLOUDFLARE_ZONE_ID`        | optional | Zone ID of `theinsightnews.co`. Needed to purge the Cloudflare edge cache when `/api/revalidate` is called. Find it: Cloudflare dashboard → domain → Overview (right sidebar). |
-| `CLOUDFLARE_PURGE_TOKEN`    | optional | API token with `Zone → Cache Purge → Purge` permission scoped to this zone. Create at: My Profile → API Tokens → Create Token → Custom token. |
-| `PURGE_BASE_URL`            | optional | Base URL used when purging Cloudflare cache. Defaults to `SITE.url` in [lib/site.js](lib/site.js). Set this if the public host differs (e.g. `https://www.theinsightnews.co` while `SITE.url` is apex). |
+- `wordpress` — เรียก `wp/v2` และ `tin/v1` ของ WordPress ตรง ๆ (แบบเดิม)
+- `payload` — `apps/web/lib/payload.js` ตอบคำขอเดียวกันจาก Payload REST API โดยคืนข้อมูลรูปแบบเดียวกับ WordPress (รวม `yoast` / `yoast_head_json` ที่สร้างจากฟิลด์ SEO ใน CMS) หน้าเว็บ ฟีด และ sitemap จึงไม่ต้องแก้
 
-Without the Cloudflare secrets the revalidate endpoint still works — it just skips the CF purge step (KV is still cleared).
+การ fetch ทุกครั้งติด cache tag (`posts`, `post-{id}`, `categories`, `tags`, `users`, …) เมื่อบันทึก/เผยแพร่ใน CMS ระบบจะยิง `POST /api/revalidate` ไปที่เว็บพร้อม tag และ path ที่เปลี่ยน (`apps/cms/src/hooks/revalidate.ts`)
 
-### 6. Custom domain
+## โครงสร้างข้อมูลใน CMS (เทียบ WordPress)
 
-After the first successful `pnpm deploy`:
-1. Cloudflare dashboard → Workers & Pages → `theinsightnews-fe` → Settings → Domains & Routes → Add Custom Domain.
-2. Add `www.theinsightnews.co` (and/or apex `theinsightnews.co`).
-3. Cloudflare creates the DNS record automatically if the zone is managed here.
+| WordPress | Payload | หมายเหตุ |
+| --- | --- | --- |
+| post | `posts` | id และ slug เดิม — URL `/{slug}` ไม่เปลี่ยน, มี draft/เวอร์ชัน/autosave, ตั้งเวลาเผยแพร่ด้วย `publishedAt` |
+| `_wp_old_slug` | `redirects` | slug เดิมของบทความที่เคยเปลี่ยนชื่อ → redirect ไปบทความปัจจุบัน แก้ slug หลังเผยแพร่ ระบบเพิ่มให้อัตโนมัติ |
+| page | `pages` | |
+| category | `categories` | หมวดแม่, noindex |
+| post_tag | `tags` | `postCount` นับอัตโนมัติ (แท็กที่มีบทความน้อยกว่า 3 เรื่องเป็น noindex เหมือนเดิม) |
+| attachment | `media` | R2 bucket `theinsightnews-media` ที่ path `wp-content/uploads/{ปี}/{เดือน}/{ไฟล์}` — path เดียวกับ WordPress ลิงก์รูปเดิมจึงใช้ได้ต่อ |
+| user | `users` | บทบาท admin / editor / author, เลือกได้ว่าจะแสดงชื่อเป็นผู้เขียนหรือ “กองบรรณาธิการ” |
+| Yoast SEO | `meta` (SEO plugin) | title, description, รูป OG, canonical, noindex/nofollow |
 
-⚠️ Before cutover, make sure WP is fully accessible at `cms.theinsightnews.co` and the admin/REST API work there — once you point `www.` at the Worker, the old WP frontend on `www.` is gone.
+ข่าวใหม่ที่บันทึกโดยไม่ใส่ slug: Claude ตั้ง slug ภาษาอังกฤษจากหัวข้อและเนื้อหาให้ ในรูปแบบเดียวกับ URL เดิมของเว็บ (`apps/cms/src/lib/ai-slug.ts`, ต้องตั้ง secret `ANTHROPIC_API_KEY`) ข้าม autosave, ข่าวที่มี slug แล้วไม่ถูกแตะ (ลบ slug ทิ้งจะได้ค่าเดิมคืน), ถ้าเรียก Claude ไม่ได้จะใช้ slug จากหัวข้อแทน
 
----
+เนื้อหาเก็บเป็น Lexical (แก้ไขได้ใน editor) และสร้าง `contentHtml` + เวลาอ่าน (`readingMinutes`) อัตโนมัติทุกครั้งที่บันทึก
 
-## Day-to-day
+### รูปภาพ
 
-```bash
-pnpm dev          # Next.js dev server (port 3000). No bindings.
-pnpm preview      # Build with OpenNext + run in workerd locally with bindings.
-pnpm deploy       # Build + publish to Cloudflare Workers.
-pnpm cf-typegen   # Regenerate Cloudflare env types to cloudflare-env.d.ts.
-```
+- CMS สร้างรูปย่อ WebP ตามขนาดที่หน้าเว็บใช้ (`packages/shared/src/image-sizes.ts`) เก็บข้างไฟล์ต้นฉบับ เช่น `x.jpg` → `x-320w.webp`, `x-768w.webp`, `x-1280w.webp`
+  - อัปโหลดใหม่ใน CMS: สร้างให้อัตโนมัติด้วย Cloudflare Images binding
+  - รูปเดิมที่ย้ายมา: `pnpm migrate:wp --steps=sizes` (ย่อด้วย sharp บนเครื่อง)
+- เว็บเรียกไฟล์จาก files.theinsightnews.co ตรง ๆ ไม่ผ่าน Next Image รูปในเนื้อหาใช้ `<picture>` (WebP + ไฟล์ต้นฉบับเป็น fallback) ระหว่างที่รูปย่อยังไม่ครบ เว็บใช้ไฟล์ต้นฉบับ (`sizesReady`)
+- ไฟล์ต้นฉบับและรูปย่อที่ WordPress สร้างไว้ (`-300x169.jpg` ฯลฯ) ถูกคัดลอกเข้า R2 ด้วย เพราะเว็บ WordPress เดิมยังลิงก์ถึง
+- files.theinsightnews.co (`apps/files`) อ่านจาก R2 ถ้ายังไม่มี (รูปที่เพิ่งอัปใน WordPress) จะดึงจาก WordPress แล้วคัดลอกลง R2 ให้ header `x-files-source` บอกว่ามาจาก `r2` / `cache` / `wordpress` · deploy: `cd apps/files && npx wrangler deploy`
+- รูปในเนื้อหาที่ลิงก์ไปเว็บที่ปิดแล้ว (เช่น songsue.co): หน้า **กู้รูปที่หายไป** ใน admin (`/admin/image-recovery`) ให้บรรณาธิการเทียบสำเนาจาก Wayback แล้วกดใช้ (เข้าคลังสื่อ + แก้ข่าว) หรือลบรูปเสียออก รายการสร้างด้วย `apps/cms/scripts/recover-images/`
 
-### Clearing cache
+## ส่งข่าวเข้ามาเป็นฉบับร่าง (API)
 
-**Auto** — the WP plugin fires `POST /api/revalidate` on every post save, invalidating:
-- `/` (homepage)
-- `/<slug>` (the post)
-- `/category/<slug>` for every category the post is in (layout-type, covers pagination)
-- `/tag/<slug>` for every tag (layout-type, covers pagination)
+`POST /api/posts/drafts` บน CMS ให้ระบบอื่นส่งเนื้อหาเข้ามาเป็น **ฉบับร่าง** เสมอ ไม่มีอะไรขึ้นเว็บจนกว่ากองบรรณาธิการจะกดเผยแพร่ใน admin (โค้ด: `apps/cms/src/endpoints/drafts.ts`)
 
-Plus, if CF secrets are configured, the same URLs are purged from Cloudflare's edge cache.
-
-**Manual (per post)** — click the "Clear cache" button in the Publish metabox on any post edit screen.
-
-**Manual (arbitrary paths)** — POST directly:
+ยืนยันตัวตนด้วย API key ของผู้ใช้ใน CMS (Users → เลือกผู้ใช้ → Enable API key) ผู้ใช้คนนั้นจะเป็นผู้เขียน และใช้สิทธิ์ตามบทบาท (author แก้ได้เฉพาะเรื่องของตัวเอง)
 
 ```bash
-curl -X POST https://www.theinsightnews.co/api/revalidate \
+curl -X POST https://<cms>/api/posts/drafts \
+  -H "Authorization: users API-Key $KEY" \
   -H "Content-Type: application/json" \
-  -H "x-revalidate-secret: $REVALIDATE_SECRET" \
-  -d '{"paths":["/","/about"],"layoutPaths":["/category/politics"]}'
+  -d '{
+    "title": "หัวข้อข่าว",
+    "html": "<p>เนื้อหา…</p><figure><img src=\"https://example.com/a.jpg\"><figcaption>คำบรรยาย</figcaption></figure>",
+    "excerpt": "สรุปสั้น",
+    "categories": ["politics", 3094],
+    "tags": ["AI", "เศรษฐกิจ"],
+    "featuredImage": "https://example.com/cover.jpg",
+    "publishedAt": "2026-11-05T09:00:00+07:00"
+  }'
+# → 201 { "id": 1000001, "slug": "…", "status": "draft", "adminUrl": "…", "url": "…" }
 ```
 
-**Nuclear — wipe all of KV:**
+| ฟิลด์ | |
+| --- | --- |
+| `title` | ต้องมีเมื่อสร้างใหม่ |
+| `html` หรือ `markdown` | เนื้อหา แปลงเป็น Lexical ให้แก้ต่อใน editor ได้ (หัวข้อ ย่อหน้า ลิงก์ รายการ รูป YouTube/embed; ตาราง/อื่น ๆ เป็น block HTML) |
+| `categories` | slug หรือ id ต้องมีเมื่อสร้างใหม่ ตัวแรกคือหมวดหลัก |
+| `tags` | ชื่อแท็ก ถ้ายังไม่มีจะสร้างให้ |
+| `featuredImage` | id ในคลังสื่อ หรือ URL รูป |
+| `excerpt`, `slug`, `publishedAt`, `sticky`, `meta.title`, `meta.description` | ไม่บังคับ — slug ซ้ำจะเติม `-2`, `-3` ให้ |
+| `author` | id ผู้ใช้ (เฉพาะ editor/admin) |
+| `id` | ส่งมาเพื่อแก้ร่างของเรื่องเดิม — เรื่องที่เผยแพร่แล้วยังแสดงฉบับเดิมจนกว่าจะกดเผยแพร่ |
+
+รูปใน `html` ที่อยู่บน files.theinsightnews.co ผูกกับรูปในคลังสื่อเดิม รูปจากเว็บอื่นถูกดาวน์โหลดเข้าคลังสื่อ (สูงสุด 40 รูป รูปละไม่เกิน 20 MB) แล้วระบบสร้างรูปย่อ WebP ให้
+
+เอกสารที่สร้างใน CMS ได้ id ตั้งแต่ 1,000,001 (`apps/cms/src/hooks/id-floor.ts`) เพื่อไม่ชนกับ id ของ WordPress ที่ยังออกเรื่อย ๆ จนวันย้ายระบบ
+
+## ย้ายข้อมูลจาก WordPress
 
 ```bash
-# list keys, bulk delete
-npx wrangler kv key list \
-  --namespace-id <id-from-wrangler.jsonc> \
-  --remote | jq '[.[].name]' > keys.json
-
-npx wrangler kv bulk delete \
-  --namespace-id <id> \
-  --remote keys.json
+cd apps/cms
+pnpm migrate:wp                          # users → categories → tags → media → posts → pages → redirects → counts (ลง D1 local)
+pnpm migrate:wp --steps=posts --limit=50 # ทดลองบางส่วน
+pnpm migrate:wp --since=2026-11-01       # เฉพาะที่แก้ไขหลังวันที่ (อัปเดตของเดิมด้วย)
+pnpm migrate:wp --steps=files            # คัดลอกไฟล์สื่อ (ต้นฉบับ + ทุกขนาด) เข้า R2
+pnpm migrate:wp --steps=sizes            # สร้างรูปย่อ WebP แล้ว mark sizesReady
 ```
 
----
+- รันซ้ำได้ ข้ามรายการที่มีแล้ว จำหน้าที่ทำถึงไว้ใน `.migrate/state.json` (`--restart` เริ่มใหม่)
+- ตัวเลือก: `--update` เขียนทับของเดิม, `--ids=1,2,3`, `--concurrency=6`, `--yoast=false` ข้ามค่า SEO ของ Yoast
+- ใส่ `WP_USER` + `WP_APP_PASSWORD` (Application Password) ใน `.env` เพื่อดึงฉบับร่างและอีเมลจริงของผู้ใช้ ถ้าไม่ใส่จะได้เฉพาะที่เผยแพร่แล้ว และผู้ใช้ได้อีเมลชั่วคราว `…@users.theinsightnews.invalid` (admin ต้องแก้เป็นอีเมลจริงก่อนให้คนนั้นกด “ลืมรหัสผ่าน”)
+- ผู้ใช้ที่ย้ายมา **ไม่มีรหัสผ่าน** (hash ของ WordPress ใช้กับ Payload ไม่ได้) ให้แต่ละคนตั้งเองผ่าน “ลืมรหัสผ่าน”
+- ขั้น `redirects` อ่าน `/wp-json/tin/v1/old-slugs` ซึ่งมีใน plugin ตั้งแต่ 1.11.0 — ต้องอัปเดต `apps/web/wordpress-plugin/tin-cdn-rewrite.php` บน WordPress ก่อน (ถ้ายังไม่อัปเดต ขั้นนี้จะข้ามไป)
+- ภาพที่หาในคลังสื่อไม่เจอ และบทความที่ย้ายไม่สำเร็จ บันทึกใน `.migrate/*-warnings.log`
 
-## Image sizing
+## Deploy บน Cloudflare
 
-We deploy without Cloudflare Images, so the browser fetches original WP-served images directly. To save bandwidth, components request the appropriate WP-generated size via `pickImage(post, size)` in [lib/api.js](lib/api.js):
+ใช้ Workers Paid plan (bundle ของ Payload เกิน 3 MB)
 
-| Component                          | WP size        |
-|------------------------------------|----------------|
-| HeroSlider, HeroCard, DarkFeature  | `large`        |
-| NewsCard (md default) / MagCard    | `medium_large` |
-| NewsCard (sm)                      | `medium`       |
-| RowCard (sidebar), DarkRow         | `thumbnail`    |
-| Single post hero                   | `full`         |
+ครั้งแรก (resource สร้างแล้ว id อยู่ใน `wrangler.jsonc`):
 
-`pickImage` falls back through neighbouring sizes if the exact one isn't present.
+```bash
+cd apps/cms
+npx wrangler secret put PAYLOAD_SECRET     # openssl rand -hex 32
+npx wrangler secret put REVALIDATE_SECRET
+npx wrangler secret put PREVIEW_SECRET
+npx wrangler secret put ANTHROPIC_API_KEY  # Claude ตั้ง slug ให้ข่าวใหม่ (ไม่ใส่ = slug จากหัวข้อ)
+npx wrangler email sending enable notify.theinsightnews.co   # อีเมลลืมรหัสผ่าน (subdomain ไม่แตะ MX ของโดเมนหลัก)
 
----
+cd ../web
+npx wrangler secret put REVALIDATE_SECRET  # ค่าเดียวกับ CMS
+npx wrangler secret put PREVIEW_SECRET     # ค่าเดียวกับ CMS
+npx wrangler secret put CMS_PREVIEW_API_KEY  # API key ของผู้ใช้ใน CMS (เปิดในหน้าโปรไฟล์) สำหรับปุ่ม Preview
+```
 
-## Analytics & cookies
+ข้อมูลขึ้น production (ย้ายลง local ก่อนแล้วอัปโหลดทีเดียว เร็วกว่าเขียนทีละแถว):
 
-- Google Analytics ID is set in `SITE.gaId` in [lib/site.js](lib/site.js). Only loads when `NODE_ENV === 'production'`.
-- Cookie default is **opt-out**: analytics is on by default. If the user opens the cookie panel and toggles Analytics off, `window['ga-disable-<id>']` is flipped and the scripts unmount.
+```bash
+cd apps/cms
+pnpm deploy:database   # schema ลง D1 remote
+pnpm deploy:app        # deploy CMS แล้วสร้างบัญชี admin แรกที่ /admin
+pnpm push:db           # คัดลอกข้อมูลจาก local ขึ้น D1 remote (ครั้งเดียว, ข้าม user ที่มีอยู่แล้ว)
+```
 
----
+Deploy ปกติ:
 
-## Legacy URLs
+```bash
+pnpm deploy:cms   # payload migrate กับ D1 remote แล้ว deploy Worker
+pnpm deploy:web
+```
 
-- `/post/<slug>` → `/<slug>` (permanent redirect in [next.config.mjs](next.config.mjs)).
-- Changed WP slugs → resolved via `resolveOldSlug()` in [lib/api.js](lib/api.js), which piggybacks on WP's built-in `wp_old_slug_redirect`. No DB lookup required.
+`pnpm deploy` เฉย ๆ ชนกับคำสั่งของ pnpm ให้ใช้ `pnpm run deploy` หรือคำสั่งด้านบน
 
----
+### เว็บจริง (www) ก่อนวันย้ายระบบ
 
-## Troubleshooting
+โค้ดเว็บชุดเดียวกัน แต่ใช้ `apps/web/wrangler.live.jsonc` + `open-next.live.config.ts`: worker `theinsightnews-fe`, อ่านจาก WordPress (`CMS_SOURCE=wordpress`), ISR cache ใน KV, ไม่มี noindex
 
-| Symptom                                              | Check |
-|------------------------------------------------------|-------|
-| Post edits don't show up on FE                       | Did the plugin fire? Check WP Site Health / `error_log` for `tin_revalidate_paths` errors. Is `REVALIDATE_SECRET` the same on both sides? |
-| Clear-cache button returns 401                       | Secret in WP Settings → Insight Headless doesn't match the Worker secret. |
-| Images 404 / load from `cms.` instead of `files.`    | Plugin deactivated? Check the CDN origin rule on Cloudflare. |
-| `pnpm preview` fails with KV binding error           | Missing `preview_id` in `wrangler.jsonc`. Create with `wrangler kv namespace create tin-fe-isr --preview`. |
-| Deploy says "binding NEXT_INC_CACHE_KV not found"    | `binding` name in `wrangler.jsonc` must be exactly `NEXT_INC_CACHE_KV` — OpenNext reads this specific name. |
-| Cloudflare purge silently skipped                    | `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_PURGE_TOKEN` not set, or `PURGE_BASE_URL` mismatches the cached host. |
+```bash
+cd apps/web
+pnpm build:live && pnpm deploy:live
+```
 
----
+Workers Builds ของ `theinsightnews-fe` (branch main) ต้องตั้งเป็น: Root directory `apps/web`, Build command `pnpm build:live`, Deploy command `pnpm deploy:live`
 
-## Files worth knowing
+## วันย้ายระบบจริง (cutover)
 
-- [wrangler.jsonc](wrangler.jsonc) — Worker config, KV binding, routes
-- [open-next.config.ts](open-next.config.ts) — OpenNext adapter config (ISR cache driver)
-- [next.config.mjs](next.config.mjs) — images, redirects, dev proxy for bindings
-- [lib/api.js](lib/api.js) — all WP fetch + data normalization + `pickImage` + `resolveOldSlug`
-- [lib/site.js](lib/site.js) — canonical site config (name, URL, GA ID, OG image)
-- [app/api/revalidate/route.js](app/api/revalidate/route.js) — on-demand cache flush (KV + Cloudflare edge)
-- [wordpress-plugin/tin-cdn-rewrite.php](wordpress-plugin/tin-cdn-rewrite.php) — WP plugin: CDN rewrite + auto-revalidate + manual clear + frontend-aware admin links
+1. งดแก้ไขใน WordPress
+2. `PAYLOAD_REMOTE=1 pnpm migrate:wp --since=<วันที่ย้ายรอบแรก>` แล้ว `--steps=files` และ `--steps=sizes`
+3. `apps/web/wrangler.jsonc`: เปลี่ยน `routes` เป็น www / apex แล้วลบ `SITE_NOINDEX`; `apps/cms/wrangler.jsonc`: เพิ่ม route `cms.theinsightnews.co`, ตั้ง `CMS_URL` / `WEB_URL` เป็นโดเมนจริง (และ `CMS_URL` ของเว็บ) แล้ว deploy ทั้งสองแอป
+4. `apps/files/wrangler.jsonc`: ถ้า WordPress ไม่อยู่ที่ cms.theinsightnews.co แล้ว ให้เปลี่ยน `ORIGIN` หรือเลิก fallback (รูปทั้งหมดอยู่ใน R2 แล้ว)
+5. ส่ง sitemap ใน Search Console
+
+ย้อนกลับ: ตั้ง `CMS_SOURCE=wordpress` ใน `apps/web/wrangler.jsonc` แล้ว deploy เว็บ
+
+## เอกสารเดิม
+
+`apps/web/README.md` — การตั้งค่าเว็บกับ WordPress เดิม (plugin, DNS, cache)

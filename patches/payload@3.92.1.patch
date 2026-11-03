@@ -1,0 +1,34 @@
+diff --git a/dist/auth/strategies/local/generatePasswordSaltHash.js b/dist/auth/strategies/local/generatePasswordSaltHash.js
+index 7eb8b1c2e274e5c58736c7b29a77424ed91de0fc..d8454c6b9a58381dc6c0779fa83fe83ec87ab4e6 100644
+--- a/dist/auth/strategies/local/generatePasswordSaltHash.js
++++ b/dist/auth/strategies/local/generatePasswordSaltHash.js
+@@ -1,8 +1,13 @@
+ import crypto from 'crypto';
+ import { ValidationError } from '../../../errors/index.js';
+ import { password } from '../../../fields/validations.js';
+-const currentPasswordHashPrefix = 'pbkdf2-sha256-v1:';
+-const currentPasswordHashIterations = 600000;
++// Patched (agrinewsthai): Cloudflare Workers caps PBKDF2 at 100,000
++// iterations, so new hashes use 100k under their own prefix. v1 (600k)
++// hashes still verify where the runtime allows it (Node).
++const currentPasswordHashPrefix = 'pbkdf2-sha256-w100k:';
++const currentPasswordHashIterations = 100000;
++const v1PasswordHashPrefix = 'pbkdf2-sha256-v1:';
++const v1PasswordHashIterations = 600000;
+ const currentPasswordHashKeyLength = 32;
+ const legacyPasswordHashIterations = 25000;
+ const legacyPasswordHashKeyLength = 512;
+@@ -51,6 +56,13 @@ export const generatePasswordSaltHash = async ({ collection, isPasswordAuthentic
+     };
+ };
+ export const getPasswordHashParameters = (hash)=>{
++    if (typeof hash === 'string' && hash.startsWith(v1PasswordHashPrefix)) {
++        return {
++            hash: hash.slice(v1PasswordHashPrefix.length),
++            iterations: v1PasswordHashIterations,
++            keyLength: currentPasswordHashKeyLength
++        };
++    }
+     if (isCurrentPasswordHash(hash)) {
+         return {
+             hash: hash.slice(currentPasswordHashPrefix.length),

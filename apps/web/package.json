@@ -1,0 +1,32 @@
+{
+  "name": "@theinsightnews/web",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "build:live": "cross-env WRANGLER_CONFIG=wrangler.live.jsonc opennextjs-cloudflare build --config wrangler.live.jsonc --openNextConfigPath open-next.live.config.ts",
+    "deploy:live": "opennextjs-cloudflare deploy --config wrangler.live.jsonc",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+  },
+  "dependencies": {
+    "@theinsightnews/shared": "workspace:*",
+    "html-react-parser": "^5.2.0",
+    "next": "16.4.4",
+    "qs-esm": "^8.0.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.15",
+    "autoprefixer": "^10.4.20",
+    "cross-env": "10.1.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "wrangler": "^4.156.2"
+  }
+}

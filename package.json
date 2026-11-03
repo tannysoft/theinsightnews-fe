@@ -1,27 +1,22 @@
 {
-  "name": "theinsightnews-fe",
-  "version": "0.1.0",
+  "name": "theinsightnews",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=22"
   },
-  "dependencies": {
-    "next": "^16.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "html-react-parser": "^5.2.0"
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @theinsightnews/web dev",
+    "dev:cms": "pnpm --filter @theinsightnews/cms dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "deploy:cms": "pnpm --filter @theinsightnews/cms run deploy",
+    "deploy:web": "pnpm --filter @theinsightnews/web run deploy",
+    "migrate:wp": "pnpm --filter @theinsightnews/cms migrate:wp"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.0.0",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15",
-    "wrangler": "^4.0.0"
+    "turbo": "^2.11.10"
   }
 }

@@ -4,7 +4,12 @@ import fs from "node:fs";
  * `vars` from the wrangler config being built (wrangler.jsonc, or
  * wrangler.live.jsonc via WRANGLER_CONFIG for the live worker), so build-time
  * settings (SITE_NOINDEX, which ends up in the static headers and robots.txt)
- * have one source of truth. Real environment variables win.
+ * have one source of truth.
+ *
+ * In a production build these win over .env.local, which points CMS_URL at
+ * the local dev CMS: Next prerenders pages at build time, and fetching from a
+ * CMS that isn't running bakes empty pages into the cache. Set
+ * WRANGLER_VARS_OVERRIDE=0 to let the environment win instead.
  */
 function wranglerVars() {
   try {
@@ -17,7 +22,8 @@ function wranglerVars() {
   }
 }
 for (const [k, v] of Object.entries(wranglerVars())) {
-  if (process.env[k] === undefined && process.env.NODE_ENV !== "development") process.env[k] = String(v);
+  if (process.env.NODE_ENV === "development") break;
+  if (process.env[k] === undefined || process.env.WRANGLER_VARS_OVERRIDE !== "0") process.env[k] = String(v);
 }
 
 /** @type {import('next').NextConfig} */
